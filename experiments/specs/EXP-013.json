@@ -1,0 +1,38 @@
+{
+  "exp": "EXP-013",
+  "hypothesis": "H-005",
+  "description": "Two CTC judges: EXP-005 (height 80) and EXP-010 (height 128) log p added, over the same Qwen 8B and 2B candidates",
+  "parent": "EXP-012",
+  "changed": [
+    "params.ctc_from"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "combine",
+    "params": {
+      "mode": "choose",
+      "ctc_from": [
+        "EXP-005",
+        "EXP-010"
+      ],
+      "vlm_from": [
+        "EXP-006",
+        "EXP-008"
+      ],
+      "lm_order": 6,
+      "lm_weight": 0.3,
+      "beam": 10,
+      "a": 0.2,
+      "w": 0.3,
+      "penalty": 1.5,
+      "all_versions": true
+    },
+    "seed": 0
+  },
+  "created": "2026-10-14T16:54:30+00:00"
+}

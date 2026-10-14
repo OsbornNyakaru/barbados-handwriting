@@ -106,9 +106,13 @@ def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
     vlms = [prm["vlm_from"]] if isinstance(prm["vlm_from"], str) else list(prm["vlm_from"])
     out = np.empty(len(train), dtype=object)
     for k, (a, b) in enumerate(rep):
-        z = np.load(RUNS / prm["ctc_from"] / f"fold{k}_logp.npz", allow_pickle=True)
+        judges = [prm["ctc_from"]] if isinstance(prm["ctc_from"], str) else list(prm["ctc_from"])
+        # read each array out of the .npz once: z["logp"] decompresses the whole array on every access
+        zs = [dict(np.load(RUNS / j / f"fold{k}_logp.npz", allow_pickle=True).items()) for j in judges]
+        z = zs[0]
         ids, charset = list(z["ids"]), list(z["charset"])
-        assert ids == list(train[P.ID_COL].iloc[b]), f"fold {k}: saved log-probabilities are for other lines"
+        for zz in zs:
+            assert list(zz["ids"]) == list(train[P.ID_COL].iloc[b]), f"fold {k}: saved log-probabilities are for other lines"
         cands = {i: [] for i in ids}
         for src in vlms:
             # fold<k>.csv plus earlier saved versions of it (fold<k>_HHMM.csv: the same spec trained again, e.g. by a
@@ -125,10 +129,12 @@ def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
                         cands[i] += lst
         lm = CharLM([P.clean(t) for t in train[P.TARGET].iloc[a]], prm["lm_order"])
         res = []
-        for lp, i in zip(z["logp"], ids):
-            lp = lp.astype(np.float32)
+        for r, i in enumerate(ids):
+            lp = z["logp"][r].astype(np.float32)
             if prm["mode"] == "choose":
-                res.append(choose(lp, charset, cands[i], lm, prm["w"])[0])
+                lps = [zz["logp"][r].astype(np.float32) for zz in zs]
+                css = [list(zz["charset"]) for zz in zs]
+                res.append(choose(lps if len(zs) > 1 else lp, css if len(zs) > 1 else charset, cands[i], lm, prm["w"])[0])
             else:
                 ctc = beam_decode(lp, charset, lm, prm["lm_weight"], 0.0, prm["beam"])
                 res.append(merge_words(lp, charset, " ".join(str(cands[i][0]).split()), ctc, lm, prm["a"], prm["w"], prm["penalty"]))
