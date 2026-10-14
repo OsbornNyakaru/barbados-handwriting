@@ -22,3 +22,10 @@ Decided 2026-10-14 by the user. Same pattern as the afro-health-qa project.
 - **Hardware to record for code review:** the GPU name and memory are written into every result.json by the runner.
 - This machine still runs the EDA, the tests, the scorer, `ctc_decode` (re-decoding saved log-probabilities with a
   language model) and every combination of saved predictions.
+- **2026-10-14, first molab attempt:** both runs stopped at the fold check (hash `c82a8c6c2563`, frozen
+  `6d2b14640424`). molab ignores the notebook's version pins for packages it ships: it ran scikit-learn 1.9.0,
+  pandas 3.0.3, numpy 2.4.6 (frozen with 1.5.2, 2.2.3, 1.26.4). Reproduced here: same data, same text-twin groups
+  (3,971), same scorer output; only scikit-learn's fold splitter shuffles differently. Fix: the folds travel as data
+  (`folds.csv` in the private data repo, written by `scripts/push_data_to_hf.py` in the pinned `.venv`), and
+  `remote.py` checks them against the frozen fold hash. The scorer gives identical results under molab's versions.
+  Crashed runs are re-queued with `exp.py submit --resubmit EXP-NNN`.
