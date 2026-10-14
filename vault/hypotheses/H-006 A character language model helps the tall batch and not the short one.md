@@ -1,6 +1,6 @@
 # H-006 A character language model helps the tall batch and not the short one
 
-Status: untested. From [[R-001 Which pretrained models to start from]].
+Status: **partly rejected** (2026-10-14, EXP-007): it helps both batches. Short 0.853 → 0.886, tall 0.770 → 0.805, overall +0.034, better in 5 of 5 folds. From [[R-001 Which pretrained models to start from]].
 
 - Idea: a 6-gram character language model built from the four training folds' transcripts, used in the CTC
   reader's beam search, lowers word errors on the hard tall scans and does nothing or harm on the clean short scans.
