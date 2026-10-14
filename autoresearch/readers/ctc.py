@@ -242,8 +242,9 @@ def fit_predict(params: dict, train_paths, train_texts, apply_paths, seed: int, 
         msg = f"ctc: epoch {ep + 1}/{p['epochs']} loss {tl / max(1, math.ceil(len(fit) / p['batch'])):.3f} {time.time() - te:.0f}s"
         last = ep + 1 == p["epochs"]
         if len(iv) and ((ep + 1) % p["eval_every"] == 0 or last):
-            cer = _cer([greedy_decode(lp_, charset) for lp_ in read([tr_img[i] for i in iv])], [texts[i] for i in iv])
-            msg += f", inner CER {cer:.4f}"
+            dec = [greedy_decode(lp_, charset) for lp_ in read([tr_img[i] for i in iv])]
+            cer = _cer(dec, [texts[i] for i in iv])
+            msg += f", inner CER {cer:.4f}, e.g. {dec[0][:40]!r}"
             if cer < best:
                 best, best_state = cer, {k: v.detach().clone() for k, v in model.state_dict().items()}
         ctx.log(msg)

@@ -30,8 +30,25 @@ import prepare as P  # noqa: E402
 
 
 class Ctx:
-    def __init__(self, log, cache, work_dir, deadline):
-        self.log, self.cache, self.work_dir, self._deadline = log, cache, Path(work_dir), deadline
+    """What a reader sees. log() also keeps the lines and uploads them as log_live.txt every two minutes, so a
+    long fold can be followed from the Mac (`exp.py` users read it from the runs repo)."""
+
+    def __init__(self, log, cache, work_dir, deadline, store=None):
+        self._print, self.cache, self.work_dir, self._deadline = log, cache, Path(work_dir), deadline
+        self._store, self.lines, self._last = store, [], 0.0
+
+    def log(self, msg):
+        self._print(msg)
+        self.lines.append(f"[{time.strftime('%H:%M:%S')}] {msg}")
+        if self._store is not None and time.time() - self._last > 120:
+            self.flush()
+
+    def flush(self):
+        self._last = time.time()
+        try:
+            self._store.put({"log_live.txt": "\n".join(self.lines[-3000:])})
+        except Exception:
+            pass   # never fail a run over a log upload
 
     def should_stop(self) -> bool:
         return time.time() > self._deadline
@@ -77,7 +94,7 @@ def run_spec(spec: dict, store, log=print, cache: dict | None = None, work_dir: 
     fold = pinned_folds(train)
     cfg = spec["config"]
     folds = spec.get("folds") or list(range(P.N_FOLDS))
-    ctx = Ctx(log, cache, work_dir, deadline)
+    ctx = Ctx(log, cache, work_dir, deadline, store)
     done = {}
     for k in folds:
         name = f"fold{k}.csv"
@@ -88,7 +105,7 @@ def run_spec(spec: dict, store, log=print, cache: dict | None = None, work_dir: 
             log(f"fold {k}: time limit reached before starting")
             break
         tf = time.time()
-        log(f"fold {k}: start ({cfg['model']})")
+        ctx.log(f"fold {k}: start ({cfg['model']})")
         pred, extras = E.run_fold(cfg, train, k, ctx, (np.where(fold != k)[0], np.where(fold == k)[0]))
         ref = train.set_index(P.ID_COL).loc[pred[P.ID_COL], P.TARGET]
         sc = P.score(ref.to_numpy(), pred["pred"].to_numpy())
@@ -99,8 +116,9 @@ def run_spec(spec: dict, store, log=print, cache: dict | None = None, work_dir: 
                    **{x: extras[x] for x in ("inner_cer",) if x in extras}}
         files[f"fold{k}.json"] = json.dumps(done[k])
         store.put(files)
-        log(f"fold {k}: score {sc['score']:.4f} (word edits {sc['parts']['word_edits']:.3f}, "
+        ctx.log(f"fold {k}: score {sc['score']:.4f} (word edits {sc['parts']['word_edits']:.3f}, "
             f"char edits {sc['parts']['char_edits']:.3f}) in {(time.time() - tf) / 60:.1f} min")
+        ctx.flush()
     finished = [k for k in folds if store.exists(f"fold{k}.csv")]
     return {"folds_done": finished, "folds_asked": folds, "this_session": done,
             "status": "ok" if len(finished) == len(folds) else "incomplete", "seconds": round(time.time() - t0, 1)}
