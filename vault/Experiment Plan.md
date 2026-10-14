@@ -83,3 +83,10 @@ Combining, on the Mac from saved held-out readings: first a judge (CTC log-proba
 model choose between the CTC and the VLM reading per line), then a character-level vote weighted by each reader's
 held-out accuracy. A reader stays in the vote only if the combined score gains at least the noise (about 0.003 per
 fold) in most folds. Expected: 0.915 to 0.925 (R-001 estimate).
+
+## Update 2026-10-14 (evening): the CTC reader is the judge
+
+[[FND-006 The CTC reader works best as a judge between vision-language readings]]: choosing per line among Qwen
+readings by CTC evidence reached 0.907 on fold 0. The CTC reading itself is not a candidate. Order from here:
+EXP-006 (Qwen3-VL-8B, running) → EXP-008 (Qwen3-VL-2B, 5-best, queued) → combine "choose" on all folds → a
+stronger judge (ConvNeXt CTC; CRNN at height 128) → more candidates (second 8B seed with 5-best, LightOnOCR-2).

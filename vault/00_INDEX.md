@@ -31,6 +31,8 @@ R.O.A.D. Barbados Historic Handwriting Challenge (Zindi). **Closed 5 Oct 2026; p
 
 ## Findings
 
+- [[FND-006 The CTC reader works best as a judge between vision-language readings]]
+
 - [[FND-005 About 2 percent of lines are crop or label problems and they hold 12 percent of the errors]]
 
 - [[FND-001 Test lines are a random quarter of the same scans as training lines]]
