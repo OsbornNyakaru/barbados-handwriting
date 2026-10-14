@@ -8,6 +8,9 @@ Models:
                 edit costs, to the other training transcripts. It proves the pipeline and sets the floor. Runs here.
   "ctc"         letter-by-letter reader (readers/ctc.py): from scratch ("crnn") or on a timm backbone. GPU, molab.
   "vlm"         vision-language reader (readers/vlm.py): Qwen3-VL with LoRA. GPU, molab.
+  "combine"     word-level merge (readers/combine.py): starts from a vision-language reading (params.vlm_from) and swaps in
+                the CTC beam reading's words (params.ctc_from) where the CTC evidence and the language model support
+                them. CPU, from saved runs.
   "ctc_decode"  re-decodes the held-out log-probabilities a "ctc" run saved (params.logits_from), for example with a
                 character language model. No training, so it runs here on the CPU.
 GPU models run fold by fold through `run_fold`, called by autoresearch/remote.py on molab.
@@ -43,6 +46,9 @@ def model_defaults(model: str) -> dict:
     if model == "vlm":
         from readers.vlm import DEFAULTS
         return dict(DEFAULTS)
+    if model == "combine":
+        return {"ctc_from": "", "vlm_from": "", "lm_order": 6, "lm_weight": 0.3, "beam": 10,
+                "a": 0.2, "w": 0.3, "penalty": 1.5}
     if model == "ctc_decode":
         return {"logits_from": "", "decode": "beam", "lm_order": 6, "lm_weight": 0.5, "lm_bonus": 0.0, "beam": 10}
     raise ValueError(f"unknown model {model!r}")
@@ -89,6 +95,28 @@ def fit_predict(cfg: dict, X_train, y_train, X_apply, seed: int, ctx=None):
     raise ValueError(f"unknown model {m!r}")
 
 
+def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
+    """combine: merge a saved vision-language run with a saved CTC run, fold by fold."""
+    from readers.combine import merge_words
+    from readers.lm import CharLM, beam_decode
+
+    prm = cfg["params"]
+    out = np.empty(len(train), dtype=object)
+    for k, (a, b) in enumerate(rep):
+        z = np.load(RUNS / prm["ctc_from"] / f"fold{k}_logp.npz", allow_pickle=True)
+        ids, charset = list(z["ids"]), list(z["charset"])
+        assert ids == list(train[P.ID_COL].iloc[b]), f"fold {k}: saved log-probabilities are for other lines"
+        v = pd.read_csv(RUNS / prm["vlm_from"] / f"fold{k}.csv", keep_default_na=False, dtype=str).set_index(P.ID_COL)["pred"]
+        lm = CharLM([P.clean(t) for t in train[P.TARGET].iloc[a]], prm["lm_order"])
+        res = []
+        for lp, i in zip(z["logp"], ids):
+            lp = lp.astype(np.float32)
+            ctc = beam_decode(lp, charset, lm, prm["lm_weight"], 0.0, prm["beam"])
+            res.append(merge_words(lp, charset, " ".join(str(v.get(i, "")).split()), ctc, lm, prm["a"], prm["w"], prm["penalty"]))
+        out[b] = res
+    return out
+
+
 def _decode_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
     """ctc_decode: read each fold's saved log-probabilities and decode them again."""
     from readers.lm import CharLM, beam_decode, greedy_decode
@@ -123,8 +151,9 @@ def run(cfg: dict, train: pd.DataFrame, test: pd.DataFrame, folds) -> tuple[np.n
     """Local runs (CPU models). (out-of-fold predictions [repeats, train rows], test predictions [test rows])."""
     if cfg["model"] in GPU_MODELS:
         raise RuntimeError(f"model {cfg['model']!r} needs a GPU: queue it with `exp.py submit` and run it on molab")
-    if cfg["model"] == "ctc_decode":
-        return np.stack([_decode_saved(cfg, train, rep) for rep in folds]), np.array([""] * len(test), dtype=object)
+    if cfg["model"] in ("ctc_decode", "combine"):
+        fn = _decode_saved if cfg["model"] == "ctc_decode" else _combine_saved
+        return np.stack([fn(cfg, train, rep) for rep in folds]), np.array([""] * len(test), dtype=object)
     X, Xt, y = features(train), features(test), train[P.TARGET].to_numpy()
     oof = np.empty((len(folds), len(train)), dtype=object)
     for r, rep in enumerate(folds):
