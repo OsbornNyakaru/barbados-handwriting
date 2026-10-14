@@ -1,0 +1,20 @@
+data/
+*.zip
+submissions/*.csv
+experiments/runs/
+*_preds.csv
+.env
+.venv*/
+__pycache__/
+.DS_Store
+
+# EDA contact sheets show competition images
+docs/eda/03_*.png
+docs/eda/04_*.png
+docs/eda/05_*.png
+docs/eda/08_*.png
+docs/eda/09_*.png
+
+# organisers' starter code
+reference/
+.pytest_cache/

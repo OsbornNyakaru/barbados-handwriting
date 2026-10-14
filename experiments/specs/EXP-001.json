@@ -1,0 +1,22 @@
+{
+  "exp": "EXP-001",
+  "hypothesis": null,
+  "description": "baseline: no reading, every line gets the training transcript closest to the others (medoid)",
+  "parent": null,
+  "changed": [],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "medoid",
+    "params": {
+      "candidates": 300,
+      "sample": 300
+    },
+    "seed": 0
+  },
+  "created": "2026-10-13T14:02:46+00:00"
+}

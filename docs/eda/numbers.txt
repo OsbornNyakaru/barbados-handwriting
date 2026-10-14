@@ -1,0 +1,61 @@
+Q1 train against test
+  images: 4098 train, 1374 test
+  JPEG quantisation tables (sum of entries) by height batch and split: table 2775: short train 3054, short test 1028, tall train 1038, tall test 343; table 3698: short train 1, short test 1, tall train 5, tall test 2
+  train: height median 65 px, taller than 150 px 25.5% (1043 lines); width median 1118 px; aspect below 6: 6 lines
+  test: height median 65 px, taller than 150 px 25.1% (345 lines); width median 1120 px; aspect below 6: 2 lines
+  lines with height 111-199 px: 129 of 5472; largest empty stretch of heights between 168 and 184 px
+  wrote docs/eda/01_train_and_test_look_alike.png
+  train-against-test classifier on size and file: AUC 0.492 (3 seeds, range 0.490-0.493)
+  train-against-test classifier on tone and ink: AUC 0.505 (3 seeds, range 0.494-0.512)
+  train-against-test classifier on all hand-made features: AUC 0.496 (3 seeds, range 0.493-0.499)
+  train-against-test classifier on image embedding (32 components): AUC 0.518 (range 0.516-0.520)
+  same classifier with the train/test labels shuffled: AUC 0.490
+  20 clusters: test share per cluster 19%-29% (overall 25.1%); clusters outside the 95% chance band: 0 of 20; test lines in clusters with no training line: 0
+  100 clusters: test share per cluster 11%-42% (overall 25.1%); clusters outside the 95% chance band: 2 of 100; test lines in clusters with no training line: 0
+  wrote docs/eda/02_no_cluster_is_test_only.png
+  nearest look-alike of a test line is a test line 25.2% of the time; of a training line 25.8% (chance 25.1%)
+  wrote docs/eda/03_short_lines_train_and_test.png
+  wrote docs/eda/04_tall_lines_train_and_test.png
+Q2 validation unit
+  training lines sharing their exact text with another line: 23 in 10 groups
+  sharing text once case and spacing are ignored: 39 in 15 groups
+  text at least 95% alike: 66 lines in 22 groups, largest 8
+  text at least 90% alike: 104 lines in 29 groups, largest 13
+  text at least 85% alike: 167 lines in 40 groups, largest 34
+  text at least 80% alike: 265 lines in 67 groups, largest 50
+  text at least 70% alike: 585 lines in 131 groups, largest 94
+  image pairs within 10 of 256 hash bits: train-train 0, train-test 0, test-test 0
+  image pairs within 20 of 256 hash bits: train-train 0, train-test 0, test-test 0
+  image pairs within 30 of 256 hash bits: train-train 0, train-test 0, test-test 0
+  image pairs within 40 of 256 hash bits: train-train 0, train-test 0, test-test 0
+  closest any two images come by hash: 71 bits; median nearest 93 bits (random pairs sit near 128)
+  image pairs with embedding similarity above 0.99: train-train 0, test-test 0, train-test 1
+  image pairs with embedding similarity above 0.98: train-train 939, test-test 102, train-test 585
+  image pairs with embedding similarity above 0.97: train-train 22518, test-test 2614, train-test 15246
+  the 50 most look-alike training pairs: embedding similarity 0.985-0.990; pairs with the same text (85% alike or more): 0; median text likeness 24%
+  wrote docs/eda/05_most_alike_training_images.png
+  fold groups (text 85% alike or image within 20 bits): 167 lines in 40 groups, largest 34; 4.1% of training lines
+  grouped lines among the first 42 rows of Train.csv: 42; among the other 4056: 125
+  wrote docs/eda/06_repeated_text_is_rare.png
+  word tokens in a held-out fold never seen in the other four folds: 10.1% (folds 10.7, 9.4, 9.6, 10.6, 10.0); distinct words 6750, seen once 62%
+  distinct characters 81; seen fewer than 10 times: 7 (+ Q * # ? | \)
+Q3 leak
+  short scans (3055 lines): characters against width rho 0.28, against aspect ratio 0.28, against file size 0.17; width per character median 16.7 px; height median 56 px
+  tall scans (1043 lines): characters against width rho 0.59, against aspect ratio 0.49, against file size 0.22; width per character median 76.5 px; height median 352 px
+  wrote docs/eda/07_image_shape_and_text_length.png
+  zip order: 1974 runs of train/test against 2059 expected if shuffled; test share by zip timestamp: 26.9%, 24.1%, 26.2%
+  zip order: neighbours differ in paper warmth by 11.28 (shuffled 11.30); neighbours in the same height batch 62.3% (shuffled 62.1%)
+  file-name order: neighbours differ in paper warmth by 11.39 (shuffled 11.30); neighbours in the same height batch 62.8% (shuffled 62.1%)
+  Train.csv then Test.csv row order: neighbours differ in paper warmth by 11.32 (shuffled 11.61); neighbours in the same height batch 61.9% (shuffled 62.1%)
+  zip order: neighbouring training transcripts are 39.9% alike (shuffled 39.9%); neighbour pairs at least 80% alike: 1
+  Train.csv row order: neighbouring training transcripts are 40.3% alike (shuffled 39.8%); neighbour pairs at least 80% alike: 31
+  Train.csv: neighbour pairs at least 80% alike in rows 1-42: 31; in rows 43-4098: 0
+  IDs: all [16] characters; first character against split: test share ranges 16%-38% over 62 first characters
+  IDs: largest correlation between any ID character and transcript length 0.040
+  sample submission: 25.2% blank; example text length against test image width rho -0.082, against aspect ratio -0.149; example targets found among training transcripts: 0
+  transcript length predicted from size and file size alone: mean error 7.0 characters (guessing the average: 10.5); lengths run 37-120
+Look at training lines with their labels
+  wrote docs/eda/08_tall_training_lines_with_labels.png
+  wrote docs/eda/09_superscripts_and_squarest_crops.png
+  transcripts with a leading or trailing space: 98; with a double space: 55; with ^: 16.8%
+  transcript length: 37-120 characters, 4-22 words
