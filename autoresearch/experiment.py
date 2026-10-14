@@ -48,7 +48,7 @@ def model_defaults(model: str) -> dict:
         return dict(DEFAULTS)
     if model == "combine":
         return {"mode": "choose", "ctc_from": "", "vlm_from": [], "lm_order": 6, "lm_weight": 0.3, "beam": 10,
-                "a": 0.2, "w": 0.3, "penalty": 1.5}
+                "a": 0.2, "w": 0.3, "penalty": 1.5, "all_versions": True}
     if model == "ctc_decode":
         return {"logits_from": "", "decode": "beam", "lm_order": 6, "lm_weight": 0.5, "lm_bonus": 0.0, "beam": 10}
     raise ValueError(f"unknown model {model!r}")
@@ -111,9 +111,13 @@ def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
         assert ids == list(train[P.ID_COL].iloc[b]), f"fold {k}: saved log-probabilities are for other lines"
         cands = {i: [] for i in ids}
         for src in vlms:
-            v = pd.read_csv(RUNS / src / f"fold{k}.csv", keep_default_na=False, dtype=str).set_index(P.ID_COL)["pred"]
-            for i in ids:
-                cands[i].append(v.get(i, ""))
+            # fold<k>.csv plus earlier saved versions of it (fold<k>_HHMM.csv: the same spec trained again, e.g. by a
+            # second runner); each is a different reading of the same lines
+            files = [RUNS / src / f"fold{k}.csv"] + sorted((RUNS / src).glob(f"fold{k}_[0-9][0-9][0-9][0-9].csv"))
+            for f in files if prm.get("all_versions", True) else files[:1]:
+                v = pd.read_csv(f, keep_default_na=False, dtype=str).set_index(P.ID_COL)["pred"]
+                for i in ids:
+                    cands[i].append(v.get(i, ""))
             nb = RUNS / src / f"fold{k}_nbest.json"
             if nb.exists():
                 for i, lst in json.loads(nb.read_text()).items():

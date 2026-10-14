@@ -250,6 +250,7 @@ def cmd_pull(a) -> None:
                 continue   # nothing yet, or nothing new since the last pull
             d = RUNS / exp
             d.mkdir(parents=True, exist_ok=True)
+            save_versions(api, exp, d)
             for f in files:
                 if f.startswith(f"runs/{exp}/") and not f.endswith("claim.json"):
                     src = hf_hub_download(RUNS_REPO, f, repo_type="dataset", local_dir=str(RUNS / "_hf"), force_download=True)
@@ -261,6 +262,21 @@ def cmd_pull(a) -> None:
                 print(f"still running on molab: {', '.join(waiting)}")
             return
         time.sleep(60)
+
+
+def save_versions(api, exp: str, d: Path) -> None:
+    """Every uploaded version of each fold<k>.csv, as fold<k>_HHMM.csv. Two runners can train the same fold; the
+    later upload replaces the earlier one, but both readings are useful candidates for combine 'choose'."""
+    from huggingface_hub import hf_hub_download
+
+    for x in api.list_repo_commits(RUNS_REPO, repo_type="dataset"):
+        if not x.title.startswith(f"runs/{exp}:"):
+            continue
+        for k in [w[4] for w in x.title.replace(",", "").split() if w.startswith("fold") and w.endswith(".csv")]:
+            dst = d / f"fold{k}_{x.created_at:%H%M}.csv"
+            if not dst.exists():
+                Path(hf_hub_download(RUNS_REPO, f"runs/{exp}/fold{k}.csv", repo_type="dataset", revision=x.commit_id,
+                                     local_dir=str(RUNS / "_hf" / x.commit_id[:8]))).replace(dst)
 
 
 def score_pulled(exp: str, s: dict, folds: list[int], partial: bool) -> None:
