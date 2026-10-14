@@ -174,3 +174,48 @@ def test_ctc_reader_trains_and_reads_on_cpu(data):
 def test_complete_fills_every_parameter_of_the_model():
     cfg = E.complete({**E.DEFAULT_CONFIG, "model": "ctc", "params": {"epochs": 3}})
     assert cfg["params"]["epochs"] == 3 and "height" in cfg["params"] and "candidates" not in cfg["params"]
+
+
+def test_ctc_reader_memorises_a_few_lines_with_the_lstm_shortcut(tmp_path):
+    """EXP-002 never left the blank-only stage: the LSTM stalled training. With rnn_skip the network memorises eight
+    rendered lines within 200 steps; this guards that the shortcut stays wired in."""
+    import math
+    import random
+
+    import torch
+    import torch.nn as nn
+    from PIL import Image, ImageDraw, ImageFont
+    from readers import ctc
+    from readers.images import load_lines
+    from readers.lm import greedy_decode
+
+    random.seed(0)
+    font = ImageFont.load_default(size=28)
+    texts, paths = [], []
+    for i in range(8):
+        t = "".join(random.choice("abcdefghij") for _ in range(8))
+        im = Image.new("L", (24 * len(t) + 20, 44), 225)
+        ImageDraw.Draw(im).text((10, 6), t, fill=30, font=font)
+        im.save(tmp_path / f"{i}.png")
+        texts.append(t)
+        paths.append(str(tmp_path / f"{i}.png"))
+    cs = sorted(set("".join(texts)))
+    idx = {c: i + 1 for i, c in enumerate(cs)}
+    p = {**ctc.DEFAULTS, "height": 32, "channels": [16, 32, 64, 64], "rnn_hidden": 64, "rnn_layers": 2, "dropout": 0.0,
+         "rnn_skip": True}
+    torch.manual_seed(0)
+    m = ctc.build_model(p, len(cs) + 1)
+    opt = torch.optim.Adam(m.parameters(), lr=1e-3)
+    x, ws = ctc.to_tensor_batch(load_lines(paths, 32, 2600), torch)
+    tg = torch.cat([torch.tensor([idx[c] for c in t]) for t in texts])
+    for _ in range(200):
+        lp = m(x).log_softmax(-1).transpose(0, 1)
+        il = torch.tensor([min(lp.shape[0], math.ceil(w / 4)) for w in ws])
+        loss = nn.CTCLoss(zero_infinity=True)(lp, tg, il, torch.tensor([8] * 8))
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+    m.eval()
+    with torch.no_grad():
+        lp = m(x).log_softmax(-1).numpy()
+    assert sum(greedy_decode(lp[i], cs) == texts[i] for i in range(8)) >= 6

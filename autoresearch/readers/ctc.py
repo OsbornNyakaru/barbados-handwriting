@@ -27,6 +27,8 @@ DEFAULTS = {
     "channels": [64, 128, 256, 256],
     "rnn_hidden": 256,
     "rnn_layers": 3,
+    "rnn_skip": False,       # True: LayerNorm before the LSTM and a shortcut around it. Without it the LSTM stalls
+                             # training at the blank-only stage (EXP-002; 8-line memorisation test, 2026-10-14)
     "dropout": 0.2,
     "epochs": 60,
     "batch": 24,
@@ -76,12 +78,20 @@ def build_model(p: dict, n_out: int):
             self.rnn = nn.LSTM(p["rnn_hidden"] * 2, p["rnn_hidden"], num_layers=p["rnn_layers"], bidirectional=True,
                                batch_first=True, dropout=p["dropout"])
             self.head = nn.Sequential(nn.Dropout(p["dropout"]), nn.Linear(p["rnn_hidden"] * 2, n_out))
+            self.skip = p.get("rnn_skip", False)
+            if self.skip:
+                self.norm = nn.LayerNorm(p["rnn_hidden"] * 2)
             self.stride = 4
 
         def forward(self, x):                       # x [B, 1, H, W]
             f = self.cnn(x)                         # [B, C, H/16, W/4]
             f = f.permute(0, 3, 1, 2).flatten(2)    # [B, W/4, C*H/16]
-            f, _ = self.rnn(self.proj(f))
+            h = self.proj(f)
+            if self.skip:
+                h = self.norm(h)
+                f = self.rnn(h)[0] + h
+            else:
+                f, _ = self.rnn(h)
             return self.head(f)                     # [B, T, n_out]
 
     class TimmCTC(nn.Module):
@@ -98,11 +108,19 @@ def build_model(p: dict, n_out: int):
             self.rnn = nn.LSTM(p["rnn_hidden"] * 2, p["rnn_hidden"], num_layers=p["rnn_layers"], bidirectional=True,
                                batch_first=True, dropout=p["dropout"])
             self.head = nn.Sequential(nn.Dropout(p["dropout"]), nn.Linear(p["rnn_hidden"] * 2, n_out))
+            self.skip = p.get("rnn_skip", False)
+            if self.skip:
+                self.norm = nn.LayerNorm(p["rnn_hidden"] * 2)
 
         def forward(self, x):
             f = self.body(x.expand(-1, 3, -1, -1))[-1]
             f = f.permute(0, 3, 1, 2).flatten(2)
-            f, _ = self.rnn(self.proj(f))
+            h = self.proj(f)
+            if self.skip:
+                h = self.norm(h)
+                f = self.rnn(h)[0] + h
+            else:
+                f, _ = self.rnn(h)
             return self.head(f)
 
     return CRNN() if p["backbone"] == "crnn" else TimmCTC()

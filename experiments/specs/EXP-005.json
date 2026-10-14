@@ -1,11 +1,10 @@
 {
   "exp": "EXP-005",
   "hypothesis": "H-001",
-  "description": "Diagnostic for EXP-002's stuck training: fold 0, 30 epochs, amp=false",
+  "description": "CTC reader from scratch with a LayerNorm and a shortcut around the LSTM (fixes EXP-002's stalled training), 5 folds",
   "parent": "EXP-002",
   "changed": [
-    "params.amp",
-    "params.epochs"
+    "params.rnn_skip"
   ],
   "config": {
     "features": [
@@ -27,8 +26,9 @@
       ],
       "rnn_hidden": 256,
       "rnn_layers": 3,
+      "rnn_skip": true,
       "dropout": 0.2,
-      "epochs": 30,
+      "epochs": 60,
       "batch": 24,
       "lr": 0.001,
       "weight_decay": 0.01,
@@ -43,14 +43,9 @@
       "beam": 10,
       "limit_train": 0,
       "workers": 4,
-      "amp": false
+      "amp": true
     },
     "seed": 0
   },
-  "created": "2026-10-14T08:06:59+00:00",
-  "folds": [
-    0
-  ],
-  "git_sha": "c5a95d18b71656e2bc99c28b17cbc59982ec1728",
-  "submitted": "2026-10-14T08:07:13+00:00"
+  "created": "2026-10-14T08:14:16+00:00"
 }
