@@ -1,0 +1,36 @@
+{
+  "exp": "EXP-007",
+  "hypothesis": "H-006",
+  "description": "Re-decode EXP-005's held-out log-probabilities: beam 10 with a 6-letter character language model (weight 0.3) built from each fold's training transcripts",
+  "parent": null,
+  "changed": [
+    "model",
+    "params.beam",
+    "params.candidates",
+    "params.decode",
+    "params.lm_bonus",
+    "params.lm_order",
+    "params.lm_weight",
+    "params.logits_from",
+    "params.sample"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "ctc_decode",
+    "params": {
+      "logits_from": "EXP-005",
+      "decode": "beam",
+      "lm_order": 6,
+      "lm_weight": 0.3,
+      "lm_bonus": 0.0,
+      "beam": 10
+    },
+    "seed": 0
+  },
+  "created": "2026-10-14T09:45:06+00:00"
+}
