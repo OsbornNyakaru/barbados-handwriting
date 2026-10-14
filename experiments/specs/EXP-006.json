@@ -1,11 +1,11 @@
 {
   "exp": "EXP-006",
   "hypothesis": "H-001",
-  "description": "Diagnostic for EXP-002's stuck training: fold 0, 30 epochs, lr=0.0003",
+  "description": "Diagnostic for EXP-002's stuck training: fold 0, 30 epochs, aug=\"none\"",
   "parent": "EXP-002",
   "changed": [
-    "epochs",
-    "lr"
+    "params.aug",
+    "params.epochs"
   ],
   "config": {
     "features": [
@@ -28,12 +28,12 @@
       "rnn_hidden": 256,
       "rnn_layers": 3,
       "dropout": 0.2,
-      "epochs": 60,
+      "epochs": 30,
       "batch": 24,
       "lr": 0.001,
       "weight_decay": 0.01,
       "warmup": 0.05,
-      "aug": "basic",
+      "aug": "none",
       "inner_val": 200,
       "eval_every": 2,
       "decode": "greedy",
@@ -45,14 +45,10 @@
       "workers": 4,
       "amp": true
     },
-    "seed": 0,
-    "epochs": 30,
-    "lr": 0.0003
+    "seed": 0
   },
-  "created": "2026-10-14T07:37:13+00:00",
+  "created": "2026-10-14T08:07:00+00:00",
   "folds": [
     0
-  ],
-  "git_sha": "5e91202556cbf62f349ec9b6fde819a7c97effbc",
-  "submitted": "2026-10-14T07:38:17+00:00"
+  ]
 }

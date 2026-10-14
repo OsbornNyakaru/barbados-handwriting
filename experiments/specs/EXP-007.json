@@ -1,0 +1,54 @@
+{
+  "exp": "EXP-007",
+  "hypothesis": "H-001",
+  "description": "Diagnostic for EXP-002's stuck training: fold 0, 30 epochs, lr=0.0003",
+  "parent": "EXP-002",
+  "changed": [
+    "params.epochs",
+    "params.lr"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "ctc",
+    "params": {
+      "backbone": "crnn",
+      "height": 80,
+      "max_width": 2600,
+      "channels": [
+        64,
+        128,
+        256,
+        256
+      ],
+      "rnn_hidden": 256,
+      "rnn_layers": 3,
+      "dropout": 0.2,
+      "epochs": 30,
+      "batch": 24,
+      "lr": 0.0003,
+      "weight_decay": 0.01,
+      "warmup": 0.05,
+      "aug": "basic",
+      "inner_val": 200,
+      "eval_every": 2,
+      "decode": "greedy",
+      "lm_order": 6,
+      "lm_weight": 0.5,
+      "lm_bonus": 0.0,
+      "beam": 10,
+      "limit_train": 0,
+      "workers": 4,
+      "amp": true
+    },
+    "seed": 0
+  },
+  "created": "2026-10-14T08:07:01+00:00",
+  "folds": [
+    0
+  ]
+}

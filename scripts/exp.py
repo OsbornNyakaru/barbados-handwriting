@@ -97,6 +97,9 @@ def cmd_new(a) -> None:
         except json.JSONDecodeError:
             pass
         set_key(cfg, k, v)
+    unknown = sorted(set(cfg) - set(E.DEFAULT_CONFIG))
+    if unknown:   # EXP-004 to 006 (2026-10-14) set epochs and amp at the top level, where no reader reads them
+        sys.exit(f"unknown top-level keys {unknown}: model settings go under params (e.g. --set params.epochs=30)")
     if hasattr(E, "complete"):
         cfg = E.complete(cfg)
     after = flat(cfg)
