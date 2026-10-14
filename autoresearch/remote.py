@@ -48,7 +48,16 @@ def pinned_folds(train: pd.DataFrame) -> np.ndarray:
     """The frozen fold of every training line, from data/raw/folds.csv (written by scripts/push_data_to_hf.py with the
     pinned local packages). Molab installs its own scikit-learn, whose fold splitter shuffles differently (EXP-002's
     first attempt, 2026-10-14), so the folds travel as data and are checked against the frozen fold hash."""
-    f = pd.read_csv(P.RAW / "folds.csv", keep_default_na=False, dtype={P.ID_COL: str, "fold": int})
+    path = P.RAW / "folds.csv"
+    if not path.exists():   # an older runner notebook does not download it; fetch it from the private data repo
+        import os
+        import shutil
+
+        from huggingface_hub import hf_hub_download
+
+        repo = os.environ.get("HF_DATA_REPO", "nyakaruosborn/barbados-handwriting-data")
+        shutil.copy(hf_hub_download(repo, "folds.csv", repo_type="dataset"), path)
+    f = pd.read_csv(path, keep_default_na=False, dtype={P.ID_COL: str, "fold": int})
     if list(f[P.ID_COL]) != list(train[P.ID_COL]):
         raise RuntimeError("folds.csv is not in Train.csv order")
     text = "\n".join(f"{i},{k}" for i, k in zip(f[P.ID_COL], f["fold"]))
