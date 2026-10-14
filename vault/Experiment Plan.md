@@ -59,3 +59,27 @@ handwriting (unruled), pseudo-labels, dictionaries and learned re-rankers (dead 
 
 EXP-002 and EXP-003 run in one molab session (queued together). Each later step starts when the step it depends
 on is pulled. A step that loses is recorded and its hypothesis marked rejected; the plan goes on from the best spec.
+
+## Update 2026-10-14 (afternoon): eight readers, then a vote
+
+First GPU results changed the numbering: EXP-005 is the CTC reader with the LSTM fix (EXP-002 never learned),
+EXP-006 is Qwen3-VL-8B on all folds. A 200-line test of the character language model on EXP-005's fold 0 gave
++0.033 (0.825 greedy to 0.858). Rerunning the same CTC spec moved a fold's score by about 0.003 (GPU randomness).
+
+The user asked for several readers of both kinds, combined. The lineup, run one after another on molab:
+
+| # | reader | kind | GPU-h, 5 folds |
+|--:|---|---|---|
+| 1 | CRNN from scratch + rnn_skip (EXP-005) | letter by letter | 1.5 (measured) |
+| 2 | the same at height 128 | letter by letter | ~2 |
+| 3 | ConvNeXt-large CTC (`convnext_large.fb_in22k_ft_in1k`, Apache 2.0) | letter by letter | 3 to 5 |
+| 4 | Qwen3-VL-2B, all folds | vision-language | 1.5 (measured on one fold) |
+| 5 | Qwen3-VL-8B (EXP-006) | vision-language | ~5 |
+| 6 | Qwen3-VL-4B-Instruct (Apache 2.0) | vision-language | ~3 |
+| 7 | LightOnOCR-2-1B (Apache 2.0) | vision-language | 2 to 3 |
+| 8 | Qwen3-VL-8B at another image height | vision-language | ~5 |
+
+Combining, on the Mac from saved held-out readings: first a judge (CTC log-probabilities plus the character language
+model choose between the CTC and the VLM reading per line), then a character-level vote weighted by each reader's
+held-out accuracy. A reader stays in the vote only if the combined score gains at least the noise (about 0.003 per
+fold) in most folds. Expected: 0.915 to 0.925 (R-001 estimate).
