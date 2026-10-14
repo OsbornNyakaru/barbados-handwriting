@@ -79,3 +79,14 @@ def merge_words(logp: np.ndarray, charset: list[str], base: str, other: str, lm:
         if s > cur:
             cur, choice = s, trial
     return build(choice)
+
+
+def choose(logp: np.ndarray, charset: list[str], candidates: list[str], lm: CharLM, w: float) -> tuple[str, int]:
+    """Pick the candidate (vision-language readings only) with the highest CTC log p + w * LM log p. The CTC reader is
+    a judge here, never a candidate: its own beam reading wins almost every time under its own evidence (fold 0,
+    2026-10-14: adding it dropped 0.907 to 0.865-0.878)."""
+    cands = list(dict.fromkeys(" ".join(str(c).split()) for c in candidates if str(c).strip())) or [""]
+    s = ctc_logp(logp, cands, charset)
+    s = np.where(np.isfinite(s), s, -1e4) + w * np.array([lm_logp(lm, c) for c in cands])
+    k = int(np.argmax(s))
+    return cands[k], k

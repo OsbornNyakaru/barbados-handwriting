@@ -32,6 +32,7 @@ DEFAULTS = {
     "gen_batch": 24,
     "limit_train": 0,
     "grad_checkpointing": True,
+    "nbest": 1,              # >1: beam search, keep this many readings per line (candidates for combine "choose")
 }
 
 
@@ -153,6 +154,7 @@ def fit_predict(params: dict, train_paths, train_texts, apply_paths, seed: int, 
     if hasattr(model, "gradient_checkpointing_disable"):
         model.gradient_checkpointing_disable()
     preds = [""] * len(apply_paths)
+    nbest: dict[int, list[str]] = {}
     order = np.argsort([_image(pth, p["height"], p["max_width"]).width for pth in apply_paths])
     tg = time.time()
     with torch.no_grad():
@@ -160,10 +162,15 @@ def fit_predict(params: dict, train_paths, train_texts, apply_paths, seed: int, 
             ids = order[i:i + p["gen_batch"]]
             imgs = [_image(apply_paths[j], p["height"], p["max_width"]) for j in ids]
             enc = proc(text=[prompt_txt] * len(ids), images=imgs, return_tensors="pt", padding=True).to(dev)
-            gen = model.generate(**enc, max_new_tokens=p["max_new_tokens"], do_sample=False, num_beams=1)
+            nb = int(p["nbest"])
+            gen = model.generate(**enc, max_new_tokens=p["max_new_tokens"], do_sample=False, num_beams=max(1, nb),
+                                 num_return_sequences=max(1, nb))
             outs = tok.batch_decode(gen[:, enc["input_ids"].shape[1]:], skip_special_tokens=True)
-            for j, o in zip(ids, outs):
-                preds[j] = " ".join(o.split())
+            for r, j in enumerate(ids):
+                group = [" ".join(o.split()) for o in outs[r * max(1, nb):(r + 1) * max(1, nb)]]
+                preds[j] = group[0]
+                if nb > 1:
+                    nbest[j] = group
     ctx.log(f"vlm: read {len(preds)} lines in {time.time() - tg:.0f}s")
     del model
     import gc
@@ -171,4 +178,4 @@ def fit_predict(params: dict, train_paths, train_texts, apply_paths, seed: int, 
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    return preds, {}
+    return preds, ({"nbest": [nbest.get(j, [preds[j]]) for j in range(len(preds))]} if p["nbest"] > 1 else {})

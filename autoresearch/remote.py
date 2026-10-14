@@ -112,6 +112,8 @@ def run_spec(spec: dict, store, log=print, cache: dict | None = None, work_dir: 
         files = {name: pred}
         if "logp" in extras:
             files[f"fold{k}_logp.npz"] = _npz(extras, pred[P.ID_COL].tolist())
+        if "nbest" in extras:
+            files[f"fold{k}_nbest.json"] = json.dumps(dict(zip(pred[P.ID_COL].tolist(), extras["nbest"])))
         done[k] = {"score": round(sc["score"], 5), "seconds": round(time.time() - tf, 1),
                    **{x: extras[x] for x in ("inner_cer",) if x in extras}}
         files[f"fold{k}.json"] = json.dumps(done[k])
