@@ -1,0 +1,46 @@
+{
+  "exp": "EXP-009",
+  "hypothesis": "H-005",
+  "description": "Judge: per line, choose among every saved Qwen3-VL-8B reading (EXP-006, two runs on most folds) by CTC log p (EXP-005) + 0.3 x character LM",
+  "parent": null,
+  "changed": [
+    "model",
+    "params.a",
+    "params.all_versions",
+    "params.beam",
+    "params.candidates",
+    "params.ctc_from",
+    "params.lm_order",
+    "params.lm_weight",
+    "params.mode",
+    "params.penalty",
+    "params.sample",
+    "params.vlm_from",
+    "params.w"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "combine",
+    "params": {
+      "mode": "choose",
+      "ctc_from": "EXP-005",
+      "vlm_from": [
+        "EXP-006"
+      ],
+      "lm_order": 6,
+      "lm_weight": 0.3,
+      "beam": 10,
+      "a": 0.2,
+      "w": 0.3,
+      "penalty": 1.5,
+      "all_versions": true
+    },
+    "seed": 0
+  },
+  "created": "2026-10-14T13:38:05+00:00"
+}

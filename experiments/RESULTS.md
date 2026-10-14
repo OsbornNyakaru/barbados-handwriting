@@ -3,7 +3,7 @@
 Validation: 5 random folds (one fixed split), near-identical transcripts kept together, balanced on scan height. Score = 1 - 0.5 * (word edits per line / 12 + character edits per line / 55) on the pooled out-of-fold predictions; ± is a bootstrap over lines. Higher is better.
 Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 folds.
 
-**Best: EXP-007 — 0.8655**
+**Best: EXP-009 — 0.9035**
 
 | exp | score | ± | parts | vs best then | adopted | description |
 |---|--:|--:|---|---|---|---|
@@ -13,3 +13,6 @@ Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 
 | EXP-004 (folds 0 only) | 0.7460 | 0.0057 | word_edits 4.3843, char_edits 7.8420, score_sqrt 0.7425, short 0.7708, tall 0.6751 | +0.6150 (1/1) vs EXP-001 | no | Diagnostic for EXP-002's stuck training: fold 0, 30 epochs, amp=false |
 | EXP-005 | 0.8318 | 0.0021 | word_edits 2.9837, char_edits 4.8267, score_sqrt 0.8298, short 0.8529, tall 0.7701 | +0.6914 (5/5) vs EXP-001 | yes | CTC reader from scratch with a LayerNorm and a shortcut around the LSTM (fixes EXP-002's stalled training), 5 folds |
 | EXP-007 | 0.8655 | 0.0019 | word_edits 2.3387, char_edits 4.0720, score_sqrt 0.8644, short 0.8861, tall 0.8052 | +0.0338 (5/5) vs EXP-005 | yes | Re-decode EXP-005's held-out log-probabilities: beam 10 with a 6-letter character language model (weight 0.3) built from each fold's training transcripts |
+| EXP-006 | 0.8954 | 0.0020 | word_edits 1.8287, char_edits 3.1242, score_sqrt 0.8947, short 0.9147, tall 0.8389 | +0.0299 (5/5) vs EXP-007 | yes | Qwen3-VL-8B-Instruct (Apache 2.0), LoRA on language and vision layers, 3 epochs, greedy; all 5 folds |
+| EXP-008 (folds 0,1,2 only) | 0.8803 | 0.0064 | word_edits 2.0748, char_edits 3.6554, score_sqrt 0.8776, short 0.9079, tall 0.7988 | -0.0135 (0/3) vs EXP-006 | no | Qwen3-VL-2B, all folds, beam search keeping 5 readings per line as candidates for combine 'choose' |
+| EXP-009 | 0.9035 | 0.0016 | word_edits 1.7067, char_edits 2.7906, score_sqrt 0.9028, short 0.9217, tall 0.8501 | +0.0081 (5/5) vs EXP-006 | yes | Judge: per line, choose among every saved Qwen3-VL-8B reading (EXP-006, two runs on most folds) by CTC log p (EXP-005) + 0.3 x character LM |

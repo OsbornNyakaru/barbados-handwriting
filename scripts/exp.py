@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -253,8 +254,8 @@ def cmd_pull(a) -> None:
             save_versions(api, exp, d)
             for f in files:
                 if f.startswith(f"runs/{exp}/") and not f.endswith("claim.json"):
-                    src = hf_hub_download(RUNS_REPO, f, repo_type="dataset", local_dir=str(RUNS / "_hf"), force_download=True)
-                    Path(src).replace(d / Path(f).name)
+                    # the shared cache, then a copy: local_dir downloads hung on 2026-10-14
+                    shutil.copy(hf_hub_download(RUNS_REPO, f, repo_type="dataset"), d / Path(f).name)
             score_pulled(exp, s, got, len(got) < len(asked))
         write_results_md()
         if not (a.wait and waiting):
@@ -275,8 +276,7 @@ def save_versions(api, exp: str, d: Path) -> None:
         for k in [w[4] for w in x.title.replace(",", "").split() if w.startswith("fold") and w.endswith(".csv")]:
             dst = d / f"fold{k}_{x.created_at:%H%M}.csv"
             if not dst.exists():
-                Path(hf_hub_download(RUNS_REPO, f"runs/{exp}/fold{k}.csv", repo_type="dataset", revision=x.commit_id,
-                                     local_dir=str(RUNS / "_hf" / x.commit_id[:8]))).replace(dst)
+                shutil.copy(hf_hub_download(RUNS_REPO, f"runs/{exp}/fold{k}.csv", repo_type="dataset", revision=x.commit_id), dst)
 
 
 def score_pulled(exp: str, s: dict, folds: list[int], partial: bool) -> None:
