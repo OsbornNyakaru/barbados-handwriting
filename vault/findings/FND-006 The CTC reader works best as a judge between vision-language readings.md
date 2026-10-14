@@ -19,3 +19,8 @@ Fold 0 (804 lines), 2026-10-14. Readings: Qwen3-VL-8B twice (EXP-006, two runner
 
 **What it changes:** spend GPU time on more and different vision-language readings per line (n-best lists, seeds,
 LightOnOCR-2), and on a stronger CTC judge (ConvNeXt, taller images). EXP-008: Qwen3-VL-2B with 5-best readings.
+
+**Update 2026-10-14 17:05 EAT, folds 0 to 3 (3,283 lines):** judge over Qwen3-VL-8B (two runs) 0.9037; adding
+Qwen3-VL-2B's top reading from two runs (EXP-008) 0.9104 (+0.007); adding its 5-best lists as well 0.9106 (+0.0002).
+Beam-search alternatives from one model are too alike to help; separately trained runs and models are what add
+useful candidates. So GPU time goes to more trained runs (EXP-011: Qwen3-VL-4B), not to n-best decoding.
