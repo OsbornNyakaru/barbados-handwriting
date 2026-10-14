@@ -104,6 +104,10 @@ def run_spec(spec: dict, store, log=print, cache: dict | None = None, work_dir: 
         if ctx.should_stop():
             log(f"fold {k}: time limit reached before starting")
             break
+        if getattr(store, "cancelled", lambda: False)():
+            ctx.log(f"fold {k}: cancelled (runs/<EXP>/cancel exists); stopping")
+            ctx.flush()
+            break
         tf = time.time()
         ctx.log(f"fold {k}: start ({cfg['model']})")
         pred, extras = E.run_fold(cfg, train, k, ctx, (np.where(fold != k)[0], np.where(fold == k)[0]))

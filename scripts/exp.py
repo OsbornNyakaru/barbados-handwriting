@@ -225,6 +225,22 @@ def cmd_submit(a) -> None:
           f"Then `exp.py pull`. Commit the stamped specs.")
 
 
+def cmd_cancel(a) -> None:
+    """Stop queued or running GPU specs: drop them from the queue and write runs/<EXP>/cancel, which the runner checks
+    before each fold (runner 2026-10-14d or later). Finished folds stay and can still be pulled."""
+    from huggingface_hub import CommitOperationAdd, CommitOperationDelete
+
+    api = _hf()
+    files = set(_remote_files(api))
+    ops = []
+    for exp in a.exps:
+        ops.append(CommitOperationAdd(path_in_repo=f"runs/{exp}/cancel", path_or_fileobj=now().encode()))
+        if f"queue/{exp}.json" in files:
+            ops.append(CommitOperationDelete(path_in_repo=f"queue/{exp}.json"))
+    api.create_commit(RUNS_REPO, repo_type="dataset", operations=ops, commit_message=f"cancel {', '.join(a.exps)}")
+    print(f"cancelled {', '.join(a.exps)}: a running fold finishes, no new fold starts (runner 2026-10-14d+)")
+
+
 def cmd_pull(a) -> None:
     from huggingface_hub import hf_hub_download
 
@@ -379,6 +395,8 @@ def main() -> None:
     q = sub.add_parser("submit")
     q.add_argument("exps", nargs="*")
     q.add_argument("--resubmit", action="store_true", help="re-queue these EXPs at the current commit (after a crash)")
+    c = sub.add_parser("cancel")
+    c.add_argument("exps", nargs="+")
     pl = sub.add_parser("pull")
     pl.add_argument("--wait", action="store_true", help="poll every minute until every queued run is finished")
     s = sub.add_parser("submission")
@@ -390,7 +408,7 @@ def main() -> None:
     l.add_argument("--note")
     a = ap.parse_args()
     {"new": cmd_new, "run": cmd_run, "status": cmd_status, "submission": cmd_submission, "lb": cmd_lb,
-     "submit": cmd_submit, "pull": cmd_pull}[a.cmd](a)
+     "submit": cmd_submit, "pull": cmd_pull, "cancel": cmd_cancel}[a.cmd](a)
 
 
 if __name__ == "__main__":

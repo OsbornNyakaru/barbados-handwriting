@@ -88,7 +88,7 @@ def _(data_repo_input, hf_token_input, mo, os, runs_repo_input):
     GITHUB_REPO = "OsbornNyakaru/barbados-handwriting"
     # The frozen harness: autoresearch/prepare.py must hash to this or the runner refuses (vault/00_INDEX.md).
     PREPARE_SHA256 = "5ed07a757d39d209020988885e15014e0ea44e90d7419200c0b74de3de950279"
-    RUNNER_VERSION = "2026-10-14c"
+    RUNNER_VERSION = "2026-10-14d"
 
     from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
 
@@ -229,6 +229,13 @@ def _(
         def get(self, name):
             return hf_hub_download(RUNS_REPO, f"{self.base}/{name}", repo_type="dataset")
 
+        def cancelled(self) -> bool:
+            """`exp.py cancel EXP-NNN` writes runs/<EXP>/cancel; remote.py checks it before each fold."""
+            try:
+                return api.file_exists(RUNS_REPO, f"{self.base}/cancel", repo_type="dataset")
+            except Exception:
+                return False
+
         def put(self, files: dict):
             out = {f"{self.base}/{k}": v for k, v in files.items()}
             if self.claim is not None:
@@ -265,7 +272,8 @@ def _(
         files = hf_files()
         done = {f.split("/")[1] for f in files if f.startswith("runs/") and f.endswith("/result.json")}
         specs = [hf_json(f) for f in files if f.startswith("queue/") and f.endswith(".json")]
-        todo = [s for s in specs if s["exp"] not in done]
+        cancelled = {f.split("/")[1] for f in files if f.startswith("runs/") and f.endswith("/cancel")}
+        todo = [s for s in specs if s["exp"] not in done and s["exp"] not in cancelled]
         fresh = []
         for s in todo:
             c = f"runs/{s['exp']}/claim.json"
