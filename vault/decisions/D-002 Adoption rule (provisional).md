@@ -22,3 +22,6 @@ and it is better in at least 4 of the 5 folds. Set in `scripts/exp.py` (`ADOPT_G
 After the first reader (EDA question 5): replace 0.0021 with the measured bootstrap spread of the reader, and
 measure the spread of a paired difference between two seeds of the same recipe. Paired differences are usually
 much tighter than single scores, so the bar may come down.
+
+
+**Checked 2026-10-14 with a real reader (EXP-005):** bootstrap spread 0.0021 at 4,098 lines; the same spec trained twice moved fold scores by 0.003 and 0.000. The rule (+0.002 averaged over folds, better in 4 of 5) stays. See [[FND-005 About 2 percent of lines are crop or label problems and they hold 12 percent of the errors]].

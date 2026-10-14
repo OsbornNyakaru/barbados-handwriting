@@ -18,11 +18,11 @@ note per finding in `vault/findings/`.
 | 1 ✅ FND-001, FND-004 | Do test lines come from the same scans, pages and writers as training lines? | Image height, width, aspect ratio, file size, colour mode and background tone for train and test; a train-against-test classifier on those; cluster images by a pretrained embedding and count test lines per cluster | Overlaid histograms; classifier AUC; share of test lines in clusters with no training line | Whether folds can be random or must hold out whole clusters |
 | 2 ✅ FND-002, D-001 | Which lines must stay together in a fold? | Group by exact text, by near-identical text (edit distance) and by near-copy images (perceptual hash) | Group count and sizes | Fold design. The winner grouped on exactly these |
 | 3 ✅ FND-003 | Is there a leak? | Target length against file size, image width and file order in the zip; do zip order or timestamps place test lines between training lines of the same page? | Correlations; a plot of train and test IDs along zip order | What to exclude. An entrant cites an image-metadata rule (thread 34321); its text is on no tab and staff never replied, so treat size and order as off limits as features |
-| 4 | How bad is the label noise, and where? | Train a small reader on 4 folds, list held-out lines by error, read the worst 50; confirm the 150 px split and the multi-line crops | Share of clearly wrong labels; error by height batch | Which rows to drop (allowed if documented) and the floor on any score |
-| 5 | How noisy is a held-out score? | Bootstrap the held-out lines for one model; repeat with seeds | Standard deviation at 820 and 4,098 lines (an entrant reports 0.0048 at 820) | The smallest gain worth adopting |
-| 6 | Where does a simple reader go wrong? | Split errors into casing, markup (`^ ~ : &`), modernised spelling, names and numbers, missing or extra words; by line length and height batch | A table of error types by share of word edits | First hypotheses |
+| 4 ✅ FND-005 | How bad is the label noise, and where? | Train a small reader on 4 folds, list held-out lines by error, read the worst 50; confirm the 150 px split and the multi-line crops | Share of clearly wrong labels; error by height batch | Which rows to drop (allowed if documented) and the floor on any score |
+| 5 ✅ FND-005 | How noisy is a held-out score? | Bootstrap the held-out lines for one model; repeat with seeds | Standard deviation at 820 and 4,098 lines (an entrant reports 0.0048 at 820) | The smallest gain worth adopting |
+| 6 ✅ FND-005 | Where does a simple reader go wrong? | Split errors into casing, markup (`^ ~ : &`), modernised spelling, names and numbers, missing or extra words; by line length and height batch | A table of error types by share of word edits | First hypotheses |
 
-Questions 1 to 3 answered 2026-10-13. Questions 4 to 6 wait for a trained reader (GPU).
+Questions 1 to 3 answered 2026-10-13; 4 to 6 on 2026-10-14 from EXP-005 (FND-005).
 
 ## Checks specific to this data
 
