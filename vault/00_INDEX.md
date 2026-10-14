@@ -49,6 +49,10 @@ R.O.A.D. Barbados Historic Handwriting Challenge (Zindi). **Closed 5 Oct 2026; p
 
 - [[R-001 Which pretrained models to start from]]: licences, shortlist and the order of the first runs.
 
+- 2026-10-14 first GPU results: [[EXP-003 Qwen3-VL-2B reads fold 0 at 0.882]];
+  [[EXP-002 The first CTC reader never learned because the LSTM stalled training]] (cause found and fixed; EXP-005
+  re-runs it). Molab installs its own scikit-learn, so the folds travel as `folds.csv` (D-003).
+
 ## Next step
 
 Run the molab queue (EXP-002, EXP-003), then `exp.py pull`. Then EDA questions 4 to 6 on EXP-002's held-out errors,
