@@ -88,7 +88,7 @@ def _(data_repo_input, hf_token_input, mo, os, runs_repo_input):
     GITHUB_REPO = "OsbornNyakaru/barbados-handwriting"
     # The frozen harness: autoresearch/prepare.py must hash to this or the runner refuses (vault/00_INDEX.md).
     PREPARE_SHA256 = "5ed07a757d39d209020988885e15014e0ea44e90d7419200c0b74de3de950279"
-    RUNNER_VERSION = "2026-10-14b"
+    RUNNER_VERSION = "2026-10-14c"
 
     from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
 
@@ -218,9 +218,10 @@ def _(
     class Store:
         """runs/<EXP>/ in the runs repo, as remote.py expects it."""
 
-        def __init__(self, exp: str):
+        def __init__(self, exp: str, claim=None):
             self.base = f"runs/{exp}"
             self.files = set(hf_files())
+            self.claim = claim   # () -> claim dict; refreshed with every upload (logs go up every 2 minutes)
 
         def exists(self, name):
             return f"{self.base}/{name}" in self.files
@@ -229,7 +230,10 @@ def _(
             return hf_hub_download(RUNS_REPO, f"{self.base}/{name}", repo_type="dataset")
 
         def put(self, files: dict):
-            hf_put({f"{self.base}/{k}": v for k, v in files.items()}, f"{self.base}: {', '.join(files)}")
+            out = {f"{self.base}/{k}": v for k, v in files.items()}
+            if self.claim is not None:
+                out[f"{self.base}/claim.json"] = json.dumps(self.claim())
+            hf_put(out, f"{self.base}: {', '.join(files)}")
             self.files |= {f"{self.base}/{k}" for k in files}
 
     return KERNEL, Store, check_harness, fetch_code, hf_files, hf_json, hf_put, import_remote
@@ -238,10 +242,12 @@ def _(
 @app.cell
 def _(
     KERNEL, RUNNER_VERSION, Store, WORK, check_harness, datetime, fetch_code, gpu_info, hf_files, hf_json, hf_put,
-    import_remote, json, mo, threading, time, timezone, traceback, uuid,
+    import_remote, json, mo, time, timezone, traceback, uuid,
 ):
     SESSION = uuid.uuid4().hex[:8]
-    CLAIM_EVERY, CLAIM_STALE = 240, 900   # seconds; a reopened tab must not start a second runner on the same spec
+    CLAIM_STALE = 900   # seconds without an upload before another runner may take a spec over
+    # The claim is refreshed by every upload (remote.py sends the log every 2 minutes). A heartbeat thread did this
+    # before 2026-10-14c and never managed a commit, so a second runner took EXP-002 over while it was running.
 
     def _now():
         return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -277,18 +283,6 @@ def _(
         hf_put({f"runs/{exp}/claim.json": json.dumps({"session": SESSION, "t": time.time(), "at": _now(), "gpu": gpu_info})},
                f"{exp}: claim {SESSION}")
 
-    def keep_claim(exp):
-        stop = threading.Event()
-
-        def beat():
-            while not stop.wait(CLAIM_EVERY):
-                w = threading.Thread(target=lambda: _quiet(_claim, exp), daemon=True)
-                w.start()
-                w.join(60)
-
-        threading.Thread(target=beat, daemon=True).start()
-        return stop
-
     def _quiet(fn, *a):
         try:
             fn(*a)
@@ -310,7 +304,8 @@ def _(
             root = fetch_code(spec["git_sha"])
             check_harness(root)
             remote = import_remote(root)
-            result.update(remote.run_spec(spec, Store(exp), log=_log, cache=KERNEL["cache"], work_dir=str(WORK / "train" / exp)))
+            claim = lambda: {"session": SESSION, "t": time.time(), "at": _now(), "gpu": gpu_info}  # noqa: E731
+            result.update(remote.run_spec(spec, Store(exp, claim), log=_log, cache=KERNEL["cache"], work_dir=str(WORK / "train" / exp)))
         except Exception as e:
             result["status"] = "crash"
             result["error"] = "".join(traceback.format_exception(e))[-4000:]
@@ -347,11 +342,7 @@ def _(
                 log(f"· {spec['exp']} taken by another runner")
                 continue
             log(f"▶ {spec['exp']} ({len(todo)} pending): {spec['description']}")
-            beat = keep_claim(spec["exp"])
-            try:
-                results.append(run_one(spec, log))
-            finally:
-                beat.set()
+            results.append(run_one(spec, log))
             log(f"■ {spec['exp']}: {results[-1].get('status')}")
             if results[-1].get("status") == "incomplete":
                 break   # the time limit was reached; run the queue again to resume at the next fold
