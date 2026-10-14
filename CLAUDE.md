@@ -2,7 +2,9 @@
 
 R.O.A.D. Barbados Historic Handwriting Challenge (Zindi): read one handwritten line from a scanned 1600s Barbados
 record and transcribe it exactly as written. Images and text, 4,098 training lines, 1,374 test lines.
-**Closed 5 Oct 2026 02:29 EAT. Practice only: no submissions are accepted, so the only score is our own held-out one.**
+**Closed 5 Oct 2026 02:29 EAT. Practice: Zindi still scores late submissions (user, 2026-10-14), unranked; our
+held-out score still drives every decision.** A submission: test runs (`exp.py new --from <reader> --folds -1`), then a
+`combine` spec with `params.test_from`, then `exp.py submission <EXP>`.
 
 ## Read in this order
 

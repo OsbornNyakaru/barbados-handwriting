@@ -1,0 +1,52 @@
+{
+  "exp": "EXP-017",
+  "hypothesis": "H-005",
+  "description": "EXP-005 trained on all 4,098 lines, reads the test lines (for the submission)",
+  "parent": "EXP-005",
+  "changed": [],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "ctc",
+    "params": {
+      "backbone": "crnn",
+      "height": 80,
+      "max_width": 2600,
+      "channels": [
+        64,
+        128,
+        256,
+        256
+      ],
+      "rnn_hidden": 256,
+      "rnn_layers": 3,
+      "rnn_skip": true,
+      "dropout": 0.2,
+      "epochs": 60,
+      "batch": 24,
+      "lr": 0.001,
+      "weight_decay": 0.01,
+      "warmup": 0.05,
+      "aug": "basic",
+      "inner_val": 200,
+      "eval_every": 2,
+      "decode": "greedy",
+      "lm_order": 6,
+      "lm_weight": 0.5,
+      "lm_bonus": 0.0,
+      "beam": 10,
+      "limit_train": 0,
+      "workers": 4,
+      "amp": true
+    },
+    "seed": 0
+  },
+  "created": "2026-10-14T19:32:08+00:00",
+  "folds": [
+    -1
+  ]
+}

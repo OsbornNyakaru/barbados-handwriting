@@ -44,6 +44,8 @@ EXP = ROOT / "experiments"
 SPECS, RUNS, RESULTS, BEST, LB = EXP / "specs", EXP / "runs", EXP / "results.jsonl", EXP / "BEST.json", EXP / "leaderboard.jsonl"
 ADOPT_GAIN, ADOPT_WINS = 0.002, 4  # provisional: see vault/decisions/D-002. The paired units are the 5 folds of the one fixed split
 SIGN = 1 if P.HIGHER_IS_BETTER else -1
+from remote import TEST, part_name  # noqa: E402
+
 RUNS_REPO = "nyakaruosborn/barbados-handwriting-runs"   # private Hugging Face dataset: queue/ and runs/
 
 
@@ -255,7 +257,8 @@ def cmd_pull(a) -> None:
             if s is None:
                 continue
             asked = s.get("folds") or list(range(P.N_FOLDS))
-            got = [k for k in asked if f"runs/{exp}/fold{k}.csv" in files]
+            got = [k for k in asked if f"runs/{exp}/{part_name(k)}.csv" in files]
+            test_only = asked == [TEST]
             prev = have.get(exp)
             if len(got) < len(asked) and f"runs/{exp}/result.json" in files:
                 r = json.loads(Path(hf_hub_download(RUNS_REPO, f"runs/{exp}/result.json", repo_type="dataset",
@@ -263,7 +266,7 @@ def cmd_pull(a) -> None:
                 print(f"{exp}: {r.get('status')} on molab after folds {got}\n{(r.get('error') or '')[-1500:]}")
             elif len(got) < len(asked):
                 waiting.append(exp)
-            if not got or (prev and prev.get("folds", list(range(P.N_FOLDS))) == got):
+            if not got or (prev and prev.get("folds", list(range(P.N_FOLDS))) == got) or (test_only and (RUNS / exp / "test.csv").exists()):
                 continue   # nothing yet, or nothing new since the last pull
             d = RUNS / exp
             d.mkdir(parents=True, exist_ok=True)
@@ -272,7 +275,10 @@ def cmd_pull(a) -> None:
                 if f.startswith(f"runs/{exp}/") and not f.endswith("claim.json"):
                     # the shared cache, then a copy: local_dir downloads hung on 2026-10-14
                     shutil.copy(hf_hub_download(RUNS_REPO, f, repo_type="dataset"), d / Path(f).name)
-            score_pulled(exp, s, got, len(got) < len(asked))
+            if test_only:   # test lines have no answers here: nothing to score
+                print(f"{exp}: test readings pulled into experiments/runs/{exp}/")
+            else:
+                score_pulled(exp, s, got, len(got) < len(asked))
         write_results_md()
         if not (a.wait and waiting):
             if waiting:
@@ -289,10 +295,10 @@ def save_versions(api, exp: str, d: Path) -> None:
     for x in api.list_repo_commits(RUNS_REPO, repo_type="dataset"):
         if not x.title.startswith(f"runs/{exp}:"):
             continue
-        for k in [w[4] for w in x.title.replace(",", "").split() if w.startswith("fold") and w.endswith(".csv")]:
-            dst = d / f"fold{k}_{x.created_at:%H%M}.csv"
+        for stem in [w[:-4] for w in x.title.replace(",", "").split() if (w.startswith("fold") or w == "test.csv") and w.endswith(".csv")]:
+            dst = d / f"{stem}_{x.created_at:%H%M}.csv"
             if not dst.exists():
-                shutil.copy(hf_hub_download(RUNS_REPO, f"runs/{exp}/fold{k}.csv", repo_type="dataset", revision=x.commit_id), dst)
+                shutil.copy(hf_hub_download(RUNS_REPO, f"runs/{exp}/{stem}.csv", repo_type="dataset", revision=x.commit_id), dst)
 
 
 def score_pulled(exp: str, s: dict, folds: list[int], partial: bool) -> None:
@@ -387,7 +393,7 @@ def main() -> None:
     n.add_argument("--desc", required=True)
     n.add_argument("--hyp")
     n.add_argument("--allow-multi", action="store_true")
-    n.add_argument("--folds", type=int, nargs="+", help="GPU runs: only these folds (a smoke test); never adopted")
+    n.add_argument("--folds", type=int, nargs="+", help="GPU runs: only these folds (a smoke test; never adopted). -1 = train on all lines, read the test lines")
     n.add_argument("--max-minutes", type=float, help="GPU runs: stop starting new folds after this long")
     r = sub.add_parser("run")
     r.add_argument("exps", nargs="*")

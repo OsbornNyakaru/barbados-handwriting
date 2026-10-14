@@ -48,7 +48,8 @@ def model_defaults(model: str) -> dict:
         return dict(DEFAULTS)
     if model == "combine":
         return {"mode": "choose", "ctc_from": "", "vlm_from": [], "lm_order": 6, "lm_weight": 0.3, "beam": 10,
-                "a": 0.2, "w": 0.3, "penalty": 1.5, "all_versions": True}
+                "a": 0.2, "w": 0.3, "penalty": 1.5, "all_versions": True,
+                "test_from": {}}   # {held-out run: its test run}; set for a submission
     if model == "ctc_decode":
         return {"logits_from": "", "decode": "beam", "lm_order": 6, "lm_weight": 0.5, "lm_bonus": 0.0, "beam": 10}
     raise ValueError(f"unknown model {model!r}")
@@ -142,6 +143,46 @@ def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
     return out
 
 
+def _combine_test(cfg: dict, train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
+    """combine on the test lines: the same judge, reading the test runs named in params.test_from ({held-out run: its
+    test run}, each test run being the same spec trained on every training line), with the language model on all of
+    them. Only "choose" is supported."""
+    import json
+
+    from readers.combine import choose
+    from readers.lm import CharLM
+
+    prm = cfg["params"]
+    if prm["mode"] != "choose":
+        raise ValueError("test predictions are built for mode 'choose' only")
+    tf = prm["test_from"]
+    judges = [prm["ctc_from"]] if isinstance(prm["ctc_from"], str) else list(prm["ctc_from"])
+    vlms = [prm["vlm_from"]] if isinstance(prm["vlm_from"], str) else list(prm["vlm_from"])
+    zs = [dict(np.load(RUNS / tf[j] / "test_logp.npz", allow_pickle=True).items()) for j in judges]
+    ids = list(test[P.ID_COL])
+    for z in zs:
+        assert list(z["ids"]) == ids, "saved test log-probabilities are not in test order"
+    cands = {i: [] for i in ids}
+    for src in vlms:
+        d = RUNS / tf[src]
+        files = [d / "test.csv"] + sorted(d.glob("test_[0-9][0-9][0-9][0-9].csv"))
+        for f in files if prm.get("all_versions", True) else files[:1]:
+            v = pd.read_csv(f, keep_default_na=False, dtype=str).set_index(P.ID_COL)["pred"]
+            assert set(v.index) == set(ids), f"{f} does not cover the test lines"
+            for i in ids:
+                cands[i].append(v[i])
+        if (d / "test_nbest.json").exists():
+            for i, lst in json.loads((d / "test_nbest.json").read_text()).items():
+                cands[i] += lst
+    lm = CharLM([P.clean(t) for t in train[P.TARGET]], prm["lm_order"])
+    out = []
+    for r, i in enumerate(ids):
+        lps = [z["logp"][r].astype(np.float32) for z in zs]
+        css = [list(z["charset"]) for z in zs]
+        out.append(choose(lps if len(zs) > 1 else lps[0], css if len(zs) > 1 else css[0], cands[i], lm, prm["w"])[0])
+    return np.array(out, dtype=object)
+
+
 def _decode_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
     """ctc_decode: read each fold's saved log-probabilities and decode them again."""
     from readers.lm import CharLM, beam_decode, greedy_decode
@@ -178,7 +219,10 @@ def run(cfg: dict, train: pd.DataFrame, test: pd.DataFrame, folds) -> tuple[np.n
         raise RuntimeError(f"model {cfg['model']!r} needs a GPU: queue it with `exp.py submit` and run it on molab")
     if cfg["model"] in ("ctc_decode", "combine"):
         fn = _decode_saved if cfg["model"] == "ctc_decode" else _combine_saved
-        return np.stack([fn(cfg, train, rep) for rep in folds]), np.array([""] * len(test), dtype=object)
+        oof = np.stack([fn(cfg, train, rep) for rep in folds])
+        if cfg["model"] == "combine" and cfg["params"].get("test_from"):
+            return oof, _combine_test(cfg, train, test)
+        return oof, np.array([""] * len(test), dtype=object)
     X, Xt, y = features(train), features(test), train[P.TARGET].to_numpy()
     oof = np.empty((len(folds), len(train)), dtype=object)
     for r, rep in enumerate(folds):
@@ -195,3 +239,10 @@ def run_fold(cfg: dict, train: pd.DataFrame, fold: int, ctx, positions=None) -> 
     preds, extras = fit_predict(cfg, X.iloc[a], y[a], X.iloc[b], cfg["seed"] + fold, ctx)
     out = pd.DataFrame({P.ID_COL: train[P.ID_COL].iloc[b].to_numpy(), "pred": [P.clean(t) for t in preds]})
     return out, extras
+
+
+def run_test(cfg: dict, train: pd.DataFrame, test: pd.DataFrame, ctx) -> tuple[pd.DataFrame, dict]:
+    """Train on every training line and read the test lines (molab, for a submission). The seed follows the folds'."""
+    preds, extras = fit_predict(cfg, features(train), train[P.TARGET].to_numpy(), features(test),
+                                cfg["seed"] + P.N_FOLDS, ctx)
+    return pd.DataFrame({P.ID_COL: test[P.ID_COL].to_numpy(), "pred": [P.clean(t) for t in preds]}), extras
