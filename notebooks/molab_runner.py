@@ -88,7 +88,7 @@ def _(data_repo_input, hf_token_input, mo, os, runs_repo_input):
     GITHUB_REPO = "OsbornNyakaru/barbados-handwriting"
     # The frozen harness: autoresearch/prepare.py must hash to this or the runner refuses (vault/00_INDEX.md).
     PREPARE_SHA256 = "5ed07a757d39d209020988885e15014e0ea44e90d7419200c0b74de3de950279"
-    RUNNER_VERSION = "2026-10-14"
+    RUNNER_VERSION = "2026-10-14b"
 
     from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
 
@@ -128,19 +128,24 @@ def _(DATA_REPO, Path, mo, zipfile):
     RAW = DATA / "raw"
     RAW.mkdir(parents=True, exist_ok=True)
     _err = ""
+    try:
+        from huggingface_hub import snapshot_download
+
+        # small files every time (folds.csv pins the frozen folds, 2026-10-14)
+        snapshot_download(repo_id=DATA_REPO, repo_type="dataset", local_dir=str(RAW),
+                          allow_patterns=["Train.csv", "Test.csv", "SampleSubmission.csv", "folds.csv", "manifest.json"])
+    except Exception as _e:
+        _err = f" ({type(_e).__name__}: {_e})"
     if not (RAW / "images").is_dir() or len(list((RAW / "images").glob("*.jpg"))) < 5472:
         try:
-            from huggingface_hub import snapshot_download
-
-            snapshot_download(repo_id=DATA_REPO, repo_type="dataset", local_dir=str(RAW),
-                              allow_patterns=["Train.csv", "Test.csv", "SampleSubmission.csv", "images.zip"])
+            snapshot_download(repo_id=DATA_REPO, repo_type="dataset", local_dir=str(RAW), allow_patterns=["images.zip"])
             with zipfile.ZipFile(RAW / "images.zip") as _z:
                 _z.extractall(RAW)
             (RAW / "images.zip").unlink()
         except Exception as _e:
             _err = f" ({type(_e).__name__}: {_e})"
     _n = len(list((RAW / "images").glob("*.jpg"))) if (RAW / "images").is_dir() else 0
-    data_ok = (RAW / "Train.csv").exists() and _n == 5472
+    data_ok = (RAW / "Train.csv").exists() and (RAW / "folds.csv").exists() and _n == 5472
     mo.md(f"Data: **{'ready' if data_ok else 'missing'}**, {_n} images in `{RAW}`{_err}")
     return DATA, WORK, data_ok
 

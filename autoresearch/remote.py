@@ -44,15 +44,28 @@ def _npz(extras: dict, ids) -> bytes:
     return buf.getvalue()
 
 
+def pinned_folds(train: pd.DataFrame) -> np.ndarray:
+    """The frozen fold of every training line, from data/raw/folds.csv (written by scripts/push_data_to_hf.py with the
+    pinned local packages). Molab installs its own scikit-learn, whose fold splitter shuffles differently (EXP-002's
+    first attempt, 2026-10-14), so the folds travel as data and are checked against the frozen fold hash."""
+    f = pd.read_csv(P.RAW / "folds.csv", keep_default_na=False, dtype={P.ID_COL: str, "fold": int})
+    if list(f[P.ID_COL]) != list(train[P.ID_COL]):
+        raise RuntimeError("folds.csv is not in Train.csv order")
+    text = "\n".join(f"{i},{k}" for i, k in zip(f[P.ID_COL], f["fold"]))
+    import hashlib
+    h = hashlib.sha256(text.encode()).hexdigest()[:12]
+    if h != P.FOLD_HASH:
+        raise RuntimeError(f"folds.csv hash {h} != frozen {P.FOLD_HASH}")
+    return f["fold"].to_numpy()
+
+
 def run_spec(spec: dict, store, log=print, cache: dict | None = None, work_dir: str = "/tmp/runner",
              max_minutes: float | None = None) -> dict:
     cache = {} if cache is None else cache
     t0 = time.time()
     deadline = t0 + 60 * float(max_minutes or spec.get("max_minutes") or 10_000)
     train, _ = P.load()
-    fh = P.fold_hash(train)
-    if fh != P.FOLD_HASH:
-        raise RuntimeError(f"fold hash {fh} != {P.FOLD_HASH}: the folds differ on this machine (package versions?)")
+    fold = pinned_folds(train)
     cfg = spec["config"]
     folds = spec.get("folds") or list(range(P.N_FOLDS))
     ctx = Ctx(log, cache, work_dir, deadline)
@@ -67,7 +80,7 @@ def run_spec(spec: dict, store, log=print, cache: dict | None = None, work_dir: 
             break
         tf = time.time()
         log(f"fold {k}: start ({cfg['model']})")
-        pred, extras = E.run_fold(cfg, train, k, ctx)
+        pred, extras = E.run_fold(cfg, train, k, ctx, (np.where(fold != k)[0], np.where(fold == k)[0]))
         ref = train.set_index(P.ID_COL).loc[pred[P.ID_COL], P.TARGET]
         sc = P.score(ref.to_numpy(), pred["pred"].to_numpy())
         files = {name: pred}

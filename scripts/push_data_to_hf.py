@@ -18,7 +18,7 @@ from huggingface_hub import HfApi
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
-FILES = ("Train.csv", "Test.csv", "SampleSubmission.csv", "images.zip")
+FILES = ("Train.csv", "Test.csv", "SampleSubmission.csv", "images.zip", "folds.csv")
 
 CARD = """---
 license: other
@@ -38,10 +38,25 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def write_folds() -> None:
+    """data/raw/folds.csv: the frozen fold of every training line, made with the pinned local packages."""
+    sys.path.insert(0, str(ROOT / "autoresearch"))
+    import prepare as P
+
+    train, _ = P.load()
+    if P.fold_hash(train) != P.FOLD_HASH:
+        raise SystemExit(f"local folds {P.fold_hash(train)} != frozen {P.FOLD_HASH}: run this in the pinned .venv")
+    import pandas as pd
+
+    pd.DataFrame({P.ID_COL: train[P.ID_COL], "fold": P.fold_of(train)}).to_csv(RAW / "folds.csv", index=False)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=None)
+    ap.add_argument("--only", nargs="*", help="upload only these files (e.g. folds.csv)")
     a = ap.parse_args()
+    write_folds()
     missing = [f for f in FILES if not (RAW / f).exists()]
     if missing:
         print(f"missing in {RAW}: {missing}", file=sys.stderr)
@@ -57,7 +72,7 @@ def main() -> int:
     stage.mkdir(parents=True, exist_ok=True)
     (stage / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (stage / "README.md").write_text(CARD)
-    for f in FILES:
+    for f in (a.only or FILES):
         api.upload_file(path_or_fileobj=str(RAW / f), path_in_repo=f, repo_id=repo, repo_type="dataset", commit_message=f"upload {f}")
     for f in ("manifest.json", "README.md"):
         api.upload_file(path_or_fileobj=str(stage / f), path_in_repo=f, repo_id=repo, repo_type="dataset", commit_message=f"upload {f}")

@@ -189,7 +189,7 @@ def _remote_files(api) -> list[str]:
 
 
 def cmd_submit(a) -> None:
-    from huggingface_hub import CommitOperationAdd
+    from huggingface_hub import CommitOperationAdd, CommitOperationDelete
 
     if subprocess.run(["git", "status", "--porcelain", "--", "autoresearch", "notebooks"], cwd=ROOT,
                       capture_output=True, text=True).stdout.strip():
@@ -203,15 +203,19 @@ def cmd_submit(a) -> None:
     gpu = getattr(E, "GPU_MODELS", set())
     todo = a.exps or sorted(p.stem for p in SPECS.glob("EXP-*.json")
                             if p.stem not in done and spec(p.stem)["config"]["model"] in gpu and f"queue/{p.stem}.json" not in files)
+    if a.resubmit and not a.exps:
+        sys.exit("--resubmit needs the EXP ids to run again")
     if not todo:
         return print("nothing to submit")
     ops = []
     for exp in todo:
         s = spec(exp)
-        s["git_sha"] = s.get("git_sha") or sha
+        s["git_sha"] = sha if a.resubmit else (s.get("git_sha") or sha)
         s["submitted"] = now()
         (SPECS / f"{exp}.json").write_text(json.dumps(s, indent=2) + "\n")
         ops.append(CommitOperationAdd(path_in_repo=f"queue/{exp}.json", path_or_fileobj=json.dumps(s, indent=2).encode()))
+        if a.resubmit:   # a crashed run: clear its end marker so the runner takes it again (logs and finished folds stay)
+            ops += [CommitOperationDelete(path_in_repo=f) for f in (f"runs/{exp}/result.json", f"runs/{exp}/claim.json") if f in files]
     api.create_commit(RUNS_REPO, repo_type="dataset", operations=ops, commit_message=f"queue {', '.join(todo)}")
     print(f"queued {', '.join(todo)} at {sha[:10]}. On molab: open the runner notebook and press Run queue.\n"
           f"Then `exp.py pull`. Commit the stamped specs.")
@@ -355,6 +359,7 @@ def main() -> None:
     sub.add_parser("status")
     q = sub.add_parser("submit")
     q.add_argument("exps", nargs="*")
+    q.add_argument("--resubmit", action="store_true", help="re-queue these EXPs at the current commit (after a crash)")
     pl = sub.add_parser("pull")
     pl.add_argument("--wait", action="store_true", help="poll every minute until every queued run is finished")
     s = sub.add_parser("submission")

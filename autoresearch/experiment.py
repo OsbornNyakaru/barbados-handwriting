@@ -133,9 +133,10 @@ def run(cfg: dict, train: pd.DataFrame, test: pd.DataFrame, folds) -> tuple[np.n
     return oof, np.asarray(fit_predict(cfg, X, y, Xt, cfg["seed"], _LocalCtx)[0])
 
 
-def run_fold(cfg: dict, train: pd.DataFrame, fold: int, ctx) -> tuple[pd.DataFrame, dict]:
-    """One fold of the fixed split (molab). Returns the held-out predictions [ID, pred] and extras to upload."""
-    a, b = P.folds(train)[0][fold]
+def run_fold(cfg: dict, train: pd.DataFrame, fold: int, ctx, positions=None) -> tuple[pd.DataFrame, dict]:
+    """One fold of the fixed split (molab). `positions` = (train positions, held-out positions); remote.py passes
+    them from the pinned fold file. Returns the held-out predictions [ID, pred] and extras to upload."""
+    a, b = positions if positions is not None else P.folds(train)[0][fold]
     X, y = features(train), train[P.TARGET].to_numpy()
     preds, extras = fit_predict(cfg, X.iloc[a], y[a], X.iloc[b], cfg["seed"] + fold, ctx)
     out = pd.DataFrame({P.ID_COL: train[P.ID_COL].iloc[b].to_numpy(), "pred": [P.clean(t) for t in preds]})
