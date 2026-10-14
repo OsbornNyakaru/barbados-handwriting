@@ -1,0 +1,41 @@
+{
+  "exp": "EXP-008",
+  "hypothesis": "H-005",
+  "description": "Qwen3-VL-2B, all folds, beam search keeping 5 readings per line as candidates for combine 'choose'",
+  "parent": "EXP-003",
+  "changed": [
+    "params.nbest"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "vlm",
+    "params": {
+      "model_id": "Qwen/Qwen3-VL-2B-Instruct",
+      "height": 128,
+      "max_width": 2560,
+      "prompt": "Transcribe the handwritten line exactly as written, keeping the original spelling, capitals and marks.",
+      "lora_r": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05,
+      "lora_targets": ".*(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj|attn\\.qkv|attn\\.proj|linear_fc1|linear_fc2)$",
+      "train_vision": true,
+      "epochs": 3,
+      "batch": 8,
+      "grad_accum": 2,
+      "lr": 0.0001,
+      "warmup": 0.03,
+      "max_new_tokens": 160,
+      "gen_batch": 24,
+      "limit_train": 0,
+      "grad_checkpointing": true,
+      "nbest": 5
+    },
+    "seed": 0
+  },
+  "created": "2026-10-14T10:48:21+00:00"
+}
