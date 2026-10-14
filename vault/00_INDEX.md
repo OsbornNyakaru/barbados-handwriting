@@ -12,7 +12,7 @@ R.O.A.D. Barbados Historic Handwriting Challenge (Zindi). **Closed 5 Oct 2026; p
   [[D-001 Five random folds, twins kept together, balanced on scan height]].
 - Harness built and frozen 2026-10-13: `autoresearch/prepare.py` hash `5ed07a757d39`, fold hash `6d2b14640424`,
   12 tests pass. Adoption rule in [[D-002 Adoption rule (provisional)]]. Local git repository, no remote.
-- **Current best: EXP-007, 0.8655 ± 0.0019** (CTC reader EXP-005 at 0.8318, decoded with a 6-letter character language model, +0.034 in 5 of 5 folds). Floor: EXP-001 0.1404.
+- **Current best: EXP-009, 0.9035 ± 0.0016** (CTC judge over two Qwen3-VL-8B runs). Before: EXP-006 Qwen3-VL-8B 0.8954, EXP-007 CTC + LM 0.8655, EXP-005 CTC 0.8318. Floor: EXP-001 0.1404.
 - No reader trained, no submission made (none possible). Images downloaded 2026-10-13.
 - 2026-10-14: molab set up ([[D-003 GPU runs on molab, code from a public GitHub repository, data in private Hugging Face]]).
   Public GitHub repository for code; data and results in private Hugging Face datasets. Readers written: CTC
