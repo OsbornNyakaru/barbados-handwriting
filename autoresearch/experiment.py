@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
     "model": "medoid",
     "params": {"candidates": 300, "sample": 300},
     "seed": 0,
+    "read_test": False,   # GPU readers: each fold model also reads the test lines (fold<k>_test.*), see run_fold
 }
 GPU_MODELS = {"ctc", "vlm"}
 RUNS = Path(__file__).resolve().parents[1] / "experiments" / "runs"
