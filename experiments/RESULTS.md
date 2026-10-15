@@ -35,6 +35,7 @@ Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 
 | EXP-032 | 0.9150 | 0.0015 | word_edits 1.5156, char_edits 2.4051, score_sqrt 0.9143, short 0.9322, tall 0.8645 | +0.0005 (4/5) vs EXP-026 | no | Vote with the 120-epoch CTC reader (EXP-018) as the CTC voter (ctc_nbest is a default fill, unused) |
 | EXP-033 | 0.9170 | 0.0015 | word_edits 1.4815, char_edits 2.3407, score_sqrt 0.9163, short 0.9337, tall 0.8679 | +0.0025 (5/5) vs EXP-026 | yes | Vote: add the 60-epoch CTC reader (EXP-005) as a second CTC voter, weight 1 |
 | EXP-034 | 0.9121 | 0.0015 | word_edits 1.5625, char_edits 2.5115, score_sqrt 0.9113, short 0.9297, tall 0.8603 | -0.0049 (0/5) vs EXP-033 | no | Vote: stronger CTC voter (EXP-018) weight 2 -> 3 |
+| EXP-035 | 0.9176 | 0.0014 | word_edits 1.4693, char_edits 2.3353, score_sqrt 0.9169, short 0.9343, tall 0.8684 | +0.0006 (4/5) vs EXP-033 | no | Vote: add the height-128 CTC reader (EXP-010) as a third CTC voter, weight 1 |
 
 ## Leaderboard
 
