@@ -27,3 +27,9 @@ Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 
 | EXP-023 | 0.9092 | 0.0015 | word_edits 1.6227, char_edits 2.5508, score_sqrt 0.9085, short 0.9272, tall 0.8564 | -0.0008 (0/5) vs EXP-012 | no | Judge weight on the character LM: 0.3 -> 0.6 |
 | EXP-024 | 0.9100 | 0.0015 | word_edits 1.6096, char_edits 2.5203, score_sqrt 0.9094, short 0.9278, tall 0.8579 | +0.0000 (0/5) vs EXP-012 | no | EXP-012 judge, plus the same judge on the test lines (readers trained on all lines: EXP-015 to EXP-017), for the submission |
 | EXP-025 | 0.9100 | 0.0015 | word_edits 1.6096, char_edits 2.5203, score_sqrt 0.9094, short 0.9278, tall 0.8579 | +0.0000 (0/5) vs EXP-012 | no | Submission judge: drop readings longer than any training line (runaway repeats); none left -> CTC beam reading |
+
+## Leaderboard
+
+| # | file | public | private | cv | note |
+|---|---|--:|--:|--:|---|
+| 1 | EXP-025_20261015_0704.csv | 0.913924693 | 0.909024825 | 0.91 | late submission 2026-10-15, unranked. Public WER 1.539 CER 2.413; private WER 1.629 CER 2.543 (ours: word 1.610, char 2.520) |
