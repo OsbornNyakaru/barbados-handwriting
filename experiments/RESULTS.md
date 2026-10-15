@@ -28,6 +28,9 @@ Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 
 | EXP-024 | 0.9100 | 0.0015 | word_edits 1.6096, char_edits 2.5203, score_sqrt 0.9094, short 0.9278, tall 0.8579 | +0.0000 (0/5) vs EXP-012 | no | EXP-012 judge, plus the same judge on the test lines (readers trained on all lines: EXP-015 to EXP-017), for the submission |
 | EXP-025 | 0.9100 | 0.0015 | word_edits 1.6096, char_edits 2.5203, score_sqrt 0.9094, short 0.9278, tall 0.8579 | +0.0000 (0/5) vs EXP-012 | no | Submission judge: drop readings longer than any training line (runaway repeats); none left -> CTC beam reading |
 | EXP-026 | 0.9145 | 0.0015 | word_edits 1.5234, char_edits 2.4239, score_sqrt 0.9138, short 0.9318, tall 0.8637 | +0.0045 (5/5) vs EXP-012 | yes | Weighted vote (first place, R-002): minimum expected metric loss over every reading, then word-span swaps; Qwen 8B 2, 2B 1, 2B 5-best 1, 4B 1, CTC beam 2 |
+| EXP-027 | 0.9136 | 0.0015 | word_edits 1.5347, char_edits 2.4754, score_sqrt 0.9128, short 0.9308, tall 0.8630 | -0.0009 (0/5) vs EXP-026 | no | Vote: add the CTC reader's 10 best readings as a voter (weight 1); first place gave Kraken's 25-best the largest weight |
+| EXP-028 | 0.9113 | 0.0015 | word_edits 1.5717, char_edits 2.5578, score_sqrt 0.9105, short 0.9289, tall 0.8596 | -0.0032 (0/5) vs EXP-026 | no | Vote: CTC beam reading weight 2 -> 3 |
+| EXP-029 | 0.9132 | 0.0015 | word_edits 1.5425, char_edits 2.4773, score_sqrt 0.9126, short 0.9307, tall 0.8619 | -0.0013 (0/5) vs EXP-026 | no | Vote: Qwen 8B weight 2 -> 3 |
 
 ## Leaderboard
 

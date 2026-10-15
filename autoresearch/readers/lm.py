@@ -60,7 +60,7 @@ def _lse(a: float, b: float) -> float:
 
 
 def beam_decode(logp: np.ndarray, charset: list[str], lm: CharLM | None, weight: float = 0.5, bonus: float = 0.0,
-                beam: int = 10, topk: int = 8, prune: float = -12.0) -> str:
+                beam: int = 10, topk: int = 8, prune: float = -12.0, nbest: int = 0) -> str | list[str]:
     """logp: [T, 1 + len(charset)] log-probabilities, blank at index 0."""
     beams = {"": (0.0, -math.inf, 0.0)}  # prefix -> (log p blank-ending, log p non-blank-ending, lm log p)
     for t in range(logp.shape[0]):
@@ -104,6 +104,8 @@ def beam_decode(logp: np.ndarray, charset: list[str], lm: CharLM | None, weight:
         end = weight * lm.logp(prefix, EOS) if lm else 0.0
         return _lse(pb, pnb) + weight * lmv + end + bonus * len(prefix)
 
+    if nbest:   # the nbest best readings, best first
+        return [k for k, _ in sorted(beams.items(), key=final, reverse=True)[:nbest]]
     return max(beams.items(), key=final)[0]
 
 

@@ -51,7 +51,7 @@ def model_defaults(model: str) -> dict:
                 "a": 0.2, "w": 0.3, "penalty": 1.5, "all_versions": True,
                 "test_from": {},   # {held-out run: its test run}; set for a submission
                 "cap_len": False,
-                "vote_weights": {}, "rounds": 3}   # mode "vote" (see _vote_lines)  # drop readings longer than any training line; none left -> the CTC beam reading
+                "vote_weights": {}, "rounds": 3, "ctc_nbest": 10}   # mode "vote" (see _vote_lines)  # drop readings longer than any training line; none left -> the CTC beam reading
     if model == "ctc_decode":
         return {"logits_from": "", "decode": "beam", "lm_order": 6, "lm_weight": 0.5, "lm_bonus": 0.0, "beam": 10}
     raise ValueError(f"unknown model {model!r}")
@@ -142,10 +142,10 @@ def _vote_lines(prm: dict, folder, stem: str, ids: list[str], z: dict, lm, max_l
 
     srcs = {}
     for name in prm["vote_weights"]:
-        if name == "ctc":
-            charset = list(z["charset"])
-            srcs[name] = {i: [beam_decode(z["logp"][r].astype(np.float32), charset, lm, prm["lm_weight"], 0.0, prm["beam"])]
-                          for r, i in enumerate(ids)}
+        if name in ("ctc", "ctc:nbest"):   # "ctc:nbest": its ctc_nbest best beam readings
+            charset, n = list(z["charset"]), (prm["ctc_nbest"] if name == "ctc:nbest" else 1)
+            srcs[name] = {i: beam_decode(z["logp"][r].astype(np.float32), charset, lm, prm["lm_weight"], 0.0,
+                                         max(prm["beam"], n), nbest=n) for r, i in enumerate(ids)}
         else:
             run, _, kind = name.partition(":")
             srcs[name] = _readings(folder(run), stem, ids, kind == "nbest")
