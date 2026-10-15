@@ -49,7 +49,8 @@ def model_defaults(model: str) -> dict:
     if model == "combine":
         return {"mode": "choose", "ctc_from": "", "vlm_from": [], "lm_order": 6, "lm_weight": 0.3, "beam": 10,
                 "a": 0.2, "w": 0.3, "penalty": 1.5, "all_versions": True,
-                "test_from": {}}   # {held-out run: its test run}; set for a submission
+                "test_from": {},   # {held-out run: its test run}; set for a submission
+                "cap_len": False}  # drop readings longer than any training line; none left -> the CTC beam reading
     if model == "ctc_decode":
         return {"logits_from": "", "decode": "beam", "lm_order": 6, "lm_weight": 0.5, "lm_bonus": 0.0, "beam": 10}
     raise ValueError(f"unknown model {model!r}")
@@ -96,6 +97,17 @@ def fit_predict(cfg: dict, X_train, y_train, X_apply, seed: int, ctx=None):
     raise ValueError(f"unknown model {m!r}")
 
 
+def _capped(prm: dict, cands: list[str], max_len: int, lp, charset, lm) -> list[str]:
+    """cap_len: a reading longer than every training line is a vision-language reader stuck repeating itself (one
+    test line, 2026-10-15: every Qwen reading 330 to 432 letters). Drop those; with none left, the CTC beam reading."""
+    if not prm.get("cap_len"):
+        return cands
+    from readers.lm import beam_decode
+
+    keep = [c for c in cands if len(" ".join(str(c).split())) <= max_len]
+    return keep or [beam_decode(lp, charset, lm, prm["lm_weight"], 0.0, prm["beam"])]
+
+
 def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
     """combine: merge a saved vision-language run with a saved CTC run, fold by fold."""
     import json
@@ -129,13 +141,15 @@ def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
                     if i in cands:
                         cands[i] += lst
         lm = CharLM([P.clean(t) for t in train[P.TARGET].iloc[a]], prm["lm_order"])
+        max_len = int(train[P.TARGET].iloc[a].map(P.clean).str.len().max())
         res = []
         for r, i in enumerate(ids):
             lp = z["logp"][r].astype(np.float32)
             if prm["mode"] == "choose":
                 lps = [zz["logp"][r].astype(np.float32) for zz in zs]
                 css = [list(zz["charset"]) for zz in zs]
-                res.append(choose(lps if len(zs) > 1 else lp, css if len(zs) > 1 else charset, cands[i], lm, prm["w"])[0])
+                cs = _capped(prm, cands[i], max_len, lp, charset, lm)
+                res.append(choose(lps if len(zs) > 1 else lp, css if len(zs) > 1 else charset, cs, lm, prm["w"])[0])
             else:
                 ctc = beam_decode(lp, charset, lm, prm["lm_weight"], 0.0, prm["beam"])
                 res.append(merge_words(lp, charset, " ".join(str(cands[i][0]).split()), ctc, lm, prm["a"], prm["w"], prm["penalty"]))
@@ -175,11 +189,13 @@ def _combine_test(cfg: dict, train: pd.DataFrame, test: pd.DataFrame) -> np.ndar
             for i, lst in json.loads((d / "test_nbest.json").read_text()).items():
                 cands[i] += lst
     lm = CharLM([P.clean(t) for t in train[P.TARGET]], prm["lm_order"])
+    max_len = int(train[P.TARGET].map(P.clean).str.len().max())
     out = []
     for r, i in enumerate(ids):
         lps = [z["logp"][r].astype(np.float32) for z in zs]
         css = [list(z["charset"]) for z in zs]
-        out.append(choose(lps if len(zs) > 1 else lps[0], css if len(zs) > 1 else css[0], cands[i], lm, prm["w"])[0])
+        cs = _capped(prm, cands[i], max_len, lps[0], css[0], lm)
+        out.append(choose(lps if len(zs) > 1 else lps[0], css if len(zs) > 1 else css[0], cs, lm, prm["w"])[0])
     return np.array(out, dtype=object)
 
 

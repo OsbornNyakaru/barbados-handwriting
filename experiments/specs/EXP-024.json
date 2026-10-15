@@ -1,0 +1,42 @@
+{
+  "exp": "EXP-024",
+  "hypothesis": "H-005",
+  "description": "EXP-012 judge, plus the same judge on the test lines (readers trained on all lines: EXP-015 to EXP-017), for the submission",
+  "parent": "EXP-012",
+  "changed": [
+    "params.test_from.EXP-005",
+    "params.test_from.EXP-006",
+    "params.test_from.EXP-008"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "combine",
+    "params": {
+      "mode": "choose",
+      "ctc_from": "EXP-005",
+      "vlm_from": [
+        "EXP-006",
+        "EXP-008"
+      ],
+      "lm_order": 6,
+      "lm_weight": 0.3,
+      "beam": 10,
+      "a": 0.2,
+      "w": 0.3,
+      "penalty": 1.5,
+      "all_versions": true,
+      "test_from": {
+        "EXP-005": "EXP-017",
+        "EXP-006": "EXP-015",
+        "EXP-008": "EXP-016"
+      }
+    },
+    "seed": 0
+  },
+  "created": "2026-10-15T04:01:32+00:00"
+}
