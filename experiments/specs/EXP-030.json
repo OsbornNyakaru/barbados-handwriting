@@ -1,0 +1,49 @@
+{
+  "exp": "EXP-030",
+  "hypothesis": "H-004",
+  "description": "Qwen3-VL-8B with first place's recipe (R-002), bundled to save GPU time: 2 epochs, lr 2e-4, merger fully trained at 1e-5, beam 4, repeat collapse",
+  "parent": "EXP-006",
+  "changed": [
+    "params.collapse",
+    "params.epochs",
+    "params.lr",
+    "params.merger_lr",
+    "params.nbest",
+    "params.num_beams"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "vlm",
+    "params": {
+      "model_id": "Qwen/Qwen3-VL-8B-Instruct",
+      "height": 128,
+      "max_width": 2560,
+      "prompt": "Transcribe the handwritten line exactly as written, keeping the original spelling, capitals and marks.",
+      "lora_r": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05,
+      "lora_targets": ".*(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj|attn\\.qkv|attn\\.proj|linear_fc1|linear_fc2)$",
+      "train_vision": true,
+      "epochs": 2,
+      "batch": 8,
+      "grad_accum": 2,
+      "lr": 0.0002,
+      "warmup": 0.03,
+      "max_new_tokens": 160,
+      "gen_batch": 24,
+      "limit_train": 0,
+      "grad_checkpointing": true,
+      "nbest": 1,
+      "num_beams": 4,
+      "collapse": true,
+      "merger_lr": 1e-05
+    },
+    "seed": 0
+  },
+  "created": "2026-10-15T06:07:31+00:00"
+}

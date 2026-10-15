@@ -33,7 +33,20 @@ DEFAULTS = {
     "limit_train": 0,
     "grad_checkpointing": True,
     "nbest": 1,              # >1: beam search, keep this many readings per line (candidates for combine "choose")
+    "num_beams": 1,          # beam width when nbest is 1 (first place: 4)
+    "collapse": False,       # cut a reading that hit max_new_tokens at the start of its repeating loop
+    "merger_lr": 0.0,        # >0: train the vision-to-language merger fully at this learning rate, not with LoRA
 }
+
+
+def _collapse(text: str, max_unit: int = 8) -> str:
+    """A reading stuck in a loop repeats a run of 1 to max_unit words three times or more; keep it once."""
+    w = text.split()
+    for i in range(len(w)):
+        for k in range(1, max_unit + 1):
+            if i + 3 * k <= len(w) and w[i:i + k] == w[i + k:i + 2 * k] == w[i + 2 * k:i + 3 * k]:
+                return " ".join(w[:i + k])
+    return text
 
 
 def _image(path: str, height: int, max_width: int):
@@ -93,10 +106,17 @@ def fit_predict(params: dict, train_paths, train_texts, apply_paths, seed: int, 
     names = [n for n, _ in model.named_modules() if re.fullmatch(p["lora_targets"], n)]
     if not p["train_vision"]:
         names = [n for n in names if "visual" not in n]
+    if p["merger_lr"]:   # the merger is trained in full below, so no LoRA on it
+        names = [n for n in names if "merger" not in n]
     if not names:
         raise RuntimeError("no LoRA target modules matched; check lora_targets against model.named_modules()")
     model = get_peft_model(model, LoraConfig(r=p["lora_r"], lora_alpha=p["lora_alpha"], lora_dropout=p["lora_dropout"],
                                              target_modules=names, task_type="CAUSAL_LM"))
+    merger = [x for n, x in model.named_parameters() if "merger" in n and "lora_" not in n] if p["merger_lr"] else []
+    for x in merger:
+        x.requires_grad_(True)
+    if p["merger_lr"] and not merger:
+        raise RuntimeError("merger_lr is set but no merger parameters were found")
     if p["grad_checkpointing"]:
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         model.enable_input_require_grads()
@@ -121,7 +141,11 @@ def fit_predict(params: dict, train_paths, train_texts, apply_paths, seed: int, 
         tok.padding_side = "left"
         return {k: v.to(dev) for k, v in enc.items()}
 
-    opt = torch.optim.AdamW([x for x in model.parameters() if x.requires_grad], lr=p["lr"], weight_decay=0.0)
+    mids = {id(x) for x in merger}
+    groups = [{"params": [x for x in model.parameters() if x.requires_grad and id(x) not in mids], "lr": p["lr"]}]
+    if merger:
+        groups.append({"params": merger, "lr": p["merger_lr"]})
+    opt = torch.optim.AdamW(groups, weight_decay=0.0)
     per_epoch = math.ceil(len(texts) / p["batch"])
     steps = math.ceil(p["epochs"] * per_epoch / p["grad_accum"])
     warm = max(1, int(steps * p["warmup"]))
@@ -163,9 +187,13 @@ def fit_predict(params: dict, train_paths, train_texts, apply_paths, seed: int, 
             imgs = [_image(apply_paths[j], p["height"], p["max_width"]) for j in ids]
             enc = proc(text=[prompt_txt] * len(ids), images=imgs, return_tensors="pt", padding=True).to(dev)
             nb = int(p["nbest"])
-            gen = model.generate(**enc, max_new_tokens=p["max_new_tokens"], do_sample=False, num_beams=max(1, nb),
-                                 num_return_sequences=max(1, nb))
-            outs = tok.batch_decode(gen[:, enc["input_ids"].shape[1]:], skip_special_tokens=True)
+            gen = model.generate(**enc, max_new_tokens=p["max_new_tokens"], do_sample=False,
+                                 num_beams=max(1, nb, p["num_beams"]), num_return_sequences=max(1, nb))
+            new = gen[:, enc["input_ids"].shape[1]:]
+            outs = tok.batch_decode(new, skip_special_tokens=True)
+            if p["collapse"]:   # only readings that ran to the token limit (first place's rule)
+                full = ((new != tok.pad_token_id).sum(1) >= p["max_new_tokens"]).tolist()
+                outs = [_collapse(o) if f else o for o, f in zip(outs, full)]
             for r, j in enumerate(ids):
                 group = [" ".join(o.split()) for o in outs[r * max(1, nb):(r + 1) * max(1, nb)]]
                 preds[j] = group[0]
