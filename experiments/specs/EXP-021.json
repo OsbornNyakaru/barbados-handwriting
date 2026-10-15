@@ -1,0 +1,36 @@
+{
+  "exp": "EXP-021",
+  "hypothesis": "H-005",
+  "description": "Judge weight on the character LM: 0.3 -> 0.2",
+  "parent": "EXP-012",
+  "changed": [
+    "params.w"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "combine",
+    "params": {
+      "mode": "choose",
+      "ctc_from": "EXP-005",
+      "vlm_from": [
+        "EXP-006",
+        "EXP-008"
+      ],
+      "lm_order": 6,
+      "lm_weight": 0.3,
+      "beam": 10,
+      "a": 0.2,
+      "w": 0.2,
+      "penalty": 1.5,
+      "all_versions": true,
+      "test_from": {}
+    },
+    "seed": 0
+  },
+  "created": "2026-10-15T03:41:50+00:00"
+}
