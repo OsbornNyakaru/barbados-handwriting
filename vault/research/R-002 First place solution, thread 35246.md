@@ -1,10 +1,10 @@
 # R-002 First place solution (thread 35246)
 
 Read 2026-10-15 from the Zindi discussion (author Brainiac, posted 7 Oct 2026; 8 replies, none technical except
-an unanswered question on how the vote weights were found). Paraphrased; ideas only, never his code, weights or
-files ([[RULES]]). Licences for every model he names were cleared in [[R-001 Which pretrained models to start from]].
+an unanswered question on how the vote weights were found). Paraphrased; ideas only, never their code, weights or
+files ([[RULES]]). Licences for every model the winner names were cleared in [[R-001 Which pretrained models to start from]].
 
-## What he built
+## What the winner built
 
 - **Validation**: 5 folds, twins kept together, best of 8 candidate splits by fold similarity. Every reader trained
   5 times; all 4,098 out-of-fold readings scored. Public LB only a secondary check. Kraken looked useless on fold 0
@@ -32,10 +32,10 @@ files ([[RULES]]). Licences for every model he names were cleared in [[R-001 Whi
      (the metric itself: minimum expected loss);
   3. swap a word only if at least two families back the alternative. Then fixed whitespace and rewrite rules.
 - **Test**: every fold model of every variant reads the test lines; a variant's weight is split across its 5 folds.
-- **Metric**: he states the edits are averaged with square-root-of-length weights (our `score_sqrt`).
+- **Metric**: the winner states the edits are averaged with square-root-of-length weights (our `score_sqrt`).
 - **Cost**: 1 GPU-hour (ConvNeXt) to about 21 GPU-hours (Qwen3-VL nine views) per fold on an RTX A6000.
 
-## What failed for him
+## What failed for the winner
 
 Bigger models (Qwen3-VL 32B, InternVL3.5-38B, Gemma-4 31B); windows that ignore word boundaries; zooming everything;
 GRPO reinforcement learning (reward up, held-out down); learned re-rankers; pseudo-labels; rare-word specialists
@@ -44,7 +44,7 @@ only, not VLM decoding or re-ranking.
 
 ## Against ours (EXP-025: validation 0.9100, Zindi private 0.9090; 1st place 0.933)
 
-| | his | ours |
+| | winner | ours |
 |---|---|---|
 | Families | 5 (8 variants) | 2 (Qwen 8B, 2B; CRNN CTC) |
 | Combining | weighted letter-level vote, minimum expected metric loss | judge picks one whole Qwen reading per line |
