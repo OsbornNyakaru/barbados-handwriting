@@ -3,7 +3,7 @@
 Validation: 5 random folds (one fixed split), near-identical transcripts kept together, balanced on scan height. Score = 1 - 0.5 * (word edits per line / 12 + character edits per line / 55) on the pooled out-of-fold predictions; ± is a bootstrap over lines. Higher is better.
 Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 folds.
 
-**Best: EXP-012 — 0.9100**
+**Best: EXP-026 — 0.9145**
 
 | exp | score | ± | parts | vs best then | adopted | description |
 |---|--:|--:|---|---|---|---|
@@ -27,6 +27,7 @@ Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 
 | EXP-023 | 0.9092 | 0.0015 | word_edits 1.6227, char_edits 2.5508, score_sqrt 0.9085, short 0.9272, tall 0.8564 | -0.0008 (0/5) vs EXP-012 | no | Judge weight on the character LM: 0.3 -> 0.6 |
 | EXP-024 | 0.9100 | 0.0015 | word_edits 1.6096, char_edits 2.5203, score_sqrt 0.9094, short 0.9278, tall 0.8579 | +0.0000 (0/5) vs EXP-012 | no | EXP-012 judge, plus the same judge on the test lines (readers trained on all lines: EXP-015 to EXP-017), for the submission |
 | EXP-025 | 0.9100 | 0.0015 | word_edits 1.6096, char_edits 2.5203, score_sqrt 0.9094, short 0.9278, tall 0.8579 | +0.0000 (0/5) vs EXP-012 | no | Submission judge: drop readings longer than any training line (runaway repeats); none left -> CTC beam reading |
+| EXP-026 | 0.9145 | 0.0015 | word_edits 1.5234, char_edits 2.4239, score_sqrt 0.9138, short 0.9318, tall 0.8637 | +0.0045 (5/5) vs EXP-012 | yes | Weighted vote (first place, R-002): minimum expected metric loss over every reading, then word-span swaps; Qwen 8B 2, 2B 1, 2B 5-best 1, 4B 1, CTC beam 2 |
 
 ## Leaderboard
 

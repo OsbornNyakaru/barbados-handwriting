@@ -81,6 +81,46 @@ def merge_words(logp: np.ndarray, charset: list[str], base: str, other: str, lm:
     return build(choice)
 
 
+def metric_loss(a: str, b: str) -> float:
+    """The competition's cost of writing `a` when the line is `b`: word edits / 12 + character edits / 55."""
+    from rapidfuzz.distance import Levenshtein
+
+    return Levenshtein.distance(a.split(), b.split()) / 12.0 + Levenshtein.distance(a, b) / 55.0
+
+
+def vote(voters: list[tuple[str, float]], rounds: int = 3, max_len: int = 10**9) -> str:
+    """Weighted vote (first place's idea, R-002): the line with the lowest weighted metric cost against every reading
+    (minimum expected loss). It starts from the best whole reading, then tries swapping one differing word span for
+    another reader's words there, keeping a swap while the cost falls, so the answer can be a line no reader wrote.
+    Readings longer than max_len (runaway repeats) may vote but are never the answer."""
+    from rapidfuzz.distance import Levenshtein
+
+    voters = [(" ".join(str(r).split()), w) for r, w in voters if w > 0]
+    cost: dict[str, float] = {}
+
+    def c_of(c):
+        if c not in cost:
+            cost[c] = sum(w * metric_loss(c, r) for r, w in voters)
+        return cost[c]
+
+    ok = sorted({r for r, _ in voters if r and len(r) <= max_len})
+    if not ok:
+        return min((r for r, _ in voters), key=len, default="")
+    best = min(ok, key=c_of)
+    for _ in range(rounds):
+        bw, cands = best.split(), set()
+        for r in ok:
+            rw = r.split()
+            for o in Levenshtein.opcodes(bw, rw):
+                if o.tag != "equal":
+                    cands.add(" ".join(bw[:o.src_start] + rw[o.dest_start:o.dest_end] + bw[o.src_end:]))
+        nb = min(sorted(cands | {best}), key=c_of)
+        if nb == best:
+            break
+        best = nb
+    return best
+
+
 def choose(logp, charset, candidates: list[str], lm: CharLM, w: float) -> tuple[str, int]:
     """Pick the candidate (vision-language readings only) with the highest CTC log p + w * LM log p. The CTC reader is
     a judge here, never a candidate: its own beam reading wins almost every time under its own evidence (fold 0,

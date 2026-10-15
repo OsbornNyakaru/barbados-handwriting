@@ -50,7 +50,8 @@ def model_defaults(model: str) -> dict:
         return {"mode": "choose", "ctc_from": "", "vlm_from": [], "lm_order": 6, "lm_weight": 0.3, "beam": 10,
                 "a": 0.2, "w": 0.3, "penalty": 1.5, "all_versions": True,
                 "test_from": {},   # {held-out run: its test run}; set for a submission
-                "cap_len": False}  # drop readings longer than any training line; none left -> the CTC beam reading
+                "cap_len": False,
+                "vote_weights": {}, "rounds": 3}   # mode "vote" (see _vote_lines)  # drop readings longer than any training line; none left -> the CTC beam reading
     if model == "ctc_decode":
         return {"logits_from": "", "decode": "beam", "lm_order": 6, "lm_weight": 0.5, "lm_bonus": 0.0, "beam": 10}
     raise ValueError(f"unknown model {model!r}")
@@ -108,6 +109,53 @@ def _capped(prm: dict, cands: list[str], max_len: int, lp, charset, lm) -> list[
     return keep or [beam_decode(lp, charset, lm, prm["lm_weight"], 0.0, prm["beam"])]
 
 
+def _readings(d: Path, stem: str, ids: list[str], nbest: bool) -> dict[str, list[str]]:
+    """Every saved reading of these lines in run folder d: <stem>.csv and its timestamped versions (<stem>_HHMM.csv,
+    the same spec trained again; identical files counted once), or with nbest the <stem>_nbest.json lists."""
+    import json
+
+    out = {i: [] for i in ids}
+    if nbest:
+        for i, lst in json.loads((d / f"{stem}_nbest.json").read_text()).items():
+            if i in out:
+                out[i] += [str(x) for x in lst]
+        return out
+    seen = set()
+    for f in [d / f"{stem}.csv"] + sorted(d.glob(f"{stem}_[0-9][0-9][0-9][0-9].csv")):
+        v = pd.read_csv(f, keep_default_na=False, dtype=str).set_index(P.ID_COL)["pred"]
+        key = tuple(v.get(i, "") for i in ids)
+        if key in seen:
+            continue
+        seen.add(key)
+        for i in ids:
+            out[i].append(v.get(i, ""))
+    return out
+
+
+def _vote_lines(prm: dict, folder, stem: str, ids: list[str], z: dict, lm, max_len: int) -> list[str]:
+    """mode "vote": params.vote_weights = {source: weight}. A source is a run ("EXP-006": its readings and saved
+    versions), a run's n-best lists ("EXP-008:nbest"), or "ctc": the beam reading of ctc_from's saved
+    log-probabilities with the character language model (lm_weight). A source's weight is split over its readings.
+    folder(run) maps a held-out run to the folder holding these lines' readings."""
+    from readers.combine import vote
+    from readers.lm import beam_decode
+
+    srcs = {}
+    for name in prm["vote_weights"]:
+        if name == "ctc":
+            charset = list(z["charset"])
+            srcs[name] = {i: [beam_decode(z["logp"][r].astype(np.float32), charset, lm, prm["lm_weight"], 0.0, prm["beam"])]
+                          for r, i in enumerate(ids)}
+        else:
+            run, _, kind = name.partition(":")
+            srcs[name] = _readings(folder(run), stem, ids, kind == "nbest")
+    out = []
+    for i in ids:
+        voters = [(t, w / len(srcs[n][i])) for n, w in prm["vote_weights"].items() if srcs[n][i] for t in srcs[n][i]]
+        out.append(vote(voters, prm["rounds"], max_len))
+    return out
+
+
 def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
     """combine: merge a saved vision-language run with a saved CTC run, fold by fold."""
     import json
@@ -142,6 +190,9 @@ def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
                         cands[i] += lst
         lm = CharLM([P.clean(t) for t in train[P.TARGET].iloc[a]], prm["lm_order"])
         max_len = int(train[P.TARGET].iloc[a].map(P.clean).str.len().max())
+        if prm["mode"] == "vote":
+            out[b] = _vote_lines(prm, lambda run: RUNS / run, f"fold{k}", ids, z, lm, max_len)
+            continue
         res = []
         for r, i in enumerate(ids):
             lp = z["logp"][r].astype(np.float32)
@@ -167,8 +218,8 @@ def _combine_test(cfg: dict, train: pd.DataFrame, test: pd.DataFrame) -> np.ndar
     from readers.lm import CharLM
 
     prm = cfg["params"]
-    if prm["mode"] != "choose":
-        raise ValueError("test predictions are built for mode 'choose' only")
+    if prm["mode"] not in ("choose", "vote"):
+        raise ValueError("test predictions are built for modes 'choose' and 'vote' only")
     tf = prm["test_from"]
     judges = [prm["ctc_from"]] if isinstance(prm["ctc_from"], str) else list(prm["ctc_from"])
     vlms = [prm["vlm_from"]] if isinstance(prm["vlm_from"], str) else list(prm["vlm_from"])
@@ -190,6 +241,8 @@ def _combine_test(cfg: dict, train: pd.DataFrame, test: pd.DataFrame) -> np.ndar
                 cands[i] += lst
     lm = CharLM([P.clean(t) for t in train[P.TARGET]], prm["lm_order"])
     max_len = int(train[P.TARGET].map(P.clean).str.len().max())
+    if prm["mode"] == "vote":
+        return np.array(_vote_lines(prm, lambda run: RUNS / tf[run], "test", ids, zs[0], lm, max_len), dtype=object)
     out = []
     for r, i in enumerate(ids):
         lps = [z["logp"][r].astype(np.float32) for z in zs]

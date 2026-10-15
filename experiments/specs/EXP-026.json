@@ -1,0 +1,52 @@
+{
+  "exp": "EXP-026",
+  "hypothesis": "H-005",
+  "description": "Weighted vote (first place, R-002): minimum expected metric loss over every reading, then word-span swaps; Qwen 8B 2, 2B 1, 2B 5-best 1, 4B 1, CTC beam 2",
+  "parent": "EXP-012",
+  "changed": [
+    "params.cap_len",
+    "params.mode",
+    "params.rounds",
+    "params.vote_weights.EXP-006",
+    "params.vote_weights.EXP-008",
+    "params.vote_weights.EXP-008:nbest",
+    "params.vote_weights.EXP-011",
+    "params.vote_weights.ctc"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "combine",
+    "params": {
+      "mode": "vote",
+      "ctc_from": "EXP-005",
+      "vlm_from": [
+        "EXP-006",
+        "EXP-008"
+      ],
+      "lm_order": 6,
+      "lm_weight": 0.3,
+      "beam": 10,
+      "a": 0.2,
+      "w": 0.3,
+      "penalty": 1.5,
+      "all_versions": true,
+      "test_from": {},
+      "cap_len": false,
+      "vote_weights": {
+        "EXP-006": 2,
+        "EXP-008": 1,
+        "EXP-008:nbest": 1,
+        "EXP-011": 1,
+        "ctc": 2
+      },
+      "rounds": 3
+    },
+    "seed": 0
+  },
+  "created": "2026-10-15T05:46:30+00:00"
+}
