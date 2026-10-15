@@ -1,0 +1,49 @@
+{
+  "exp": "EXP-039",
+  "hypothesis": "H-005",
+  "description": "Vote: add Qwen 8B with first place's recipe (EXP-030) as a voter, weight 2",
+  "parent": "EXP-033",
+  "changed": [
+    "params.vote_weights.EXP-030"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "combine",
+    "params": {
+      "mode": "vote",
+      "ctc_from": "EXP-018",
+      "vlm_from": [
+        "EXP-006",
+        "EXP-008"
+      ],
+      "lm_order": 6,
+      "lm_weight": 0.3,
+      "beam": 10,
+      "a": 0.2,
+      "w": 0.3,
+      "penalty": 1.5,
+      "all_versions": true,
+      "test_from": {},
+      "cap_len": false,
+      "vote_weights": {
+        "EXP-006": 2,
+        "EXP-008": 1,
+        "EXP-008:nbest": 1,
+        "EXP-011": 1,
+        "ctc": 2,
+        "ctc@EXP-005": 1,
+        "EXP-030": 2
+      },
+      "rounds": 3,
+      "ctc_nbest": 10
+    },
+    "seed": 0,
+    "read_test": false
+  },
+  "created": "2026-10-15T14:14:12+00:00"
+}

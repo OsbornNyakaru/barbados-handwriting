@@ -37,8 +37,14 @@ Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 
 | EXP-034 | 0.9121 | 0.0015 | word_edits 1.5625, char_edits 2.5115, score_sqrt 0.9113, short 0.9297, tall 0.8603 | -0.0049 (0/5) vs EXP-033 | no | Vote: stronger CTC voter (EXP-018) weight 2 -> 3 |
 | EXP-035 | 0.9176 | 0.0014 | word_edits 1.4693, char_edits 2.3353, score_sqrt 0.9169, short 0.9343, tall 0.8684 | +0.0006 (4/5) vs EXP-033 | no | Vote: add the height-128 CTC reader (EXP-010) as a third CTC voter, weight 1 |
 | EXP-019 | 0.8866 | 0.0037 | word_edits 1.9719, char_edits 3.4322, score_sqrt 0.8866, short 0.9053, tall 0.8320 | -0.0303 (0/5) vs EXP-033 | no | Qwen3-VL-8B: 3 -> 4 epochs |
-| EXP-030 (folds 0,1 only) | 0.9045 | 0.0025 | word_edits 1.6941, char_edits 2.7430, score_sqrt 0.9033, short 0.9212, tall 0.8564 | -0.0132 (0/2) vs EXP-033 | no | Qwen3-VL-8B with first place's recipe (R-002), bundled to save GPU time: 2 epochs, lr 2e-4, merger fully trained at 1e-5, beam 4, repeat collapse |
 | EXP-036 | 0.9171 | 0.0015 | word_edits 1.4805, char_edits 2.3341, score_sqrt 0.9164, short 0.9336, tall 0.8688 | +0.0001 (3/5) vs EXP-033 | no | Vote: add the 4-epoch Qwen 8B (EXP-019) as a voter, weight 1 |
+| EXP-030 | 0.9054 | 0.0016 | word_edits 1.6723, char_edits 2.7418, score_sqrt 0.9046, short 0.9229, tall 0.8542 | -0.0116 (0/5) vs EXP-033 | no | Qwen3-VL-8B with first place's recipe (R-002), bundled to save GPU time: 2 epochs, lr 2e-4, merger fully trained at 1e-5, beam 4, repeat collapse |
+| EXP-031 | 0.8156 | 0.0022 | word_edits 3.2975, char_edits 5.1747, score_sqrt 0.8134, short 0.8396, tall 0.7452 | -0.1015 (0/5) vs EXP-033 | no | Second letter-by-letter reader: ConvNeXt-large CTC (Apache 2.0, ImageNet pretrained), height 128, 30 epochs (first place's settings, R-002) |
+| EXP-037 (folds 0 only) | 0.8907 | 0.0041 | word_edits 1.9216, char_edits 3.2152, score_sqrt 0.8894, short 0.9084, tall 0.8399 | -0.0253 (0/1) vs EXP-033 | no | Qwen3-VL-2B (5-best) with first place's recipe (as EXP-030); fold models also read the test lines |
+| EXP-039 | 0.9167 | 0.0015 | word_edits 1.4819, char_edits 2.3653, score_sqrt 0.9160, short 0.9334, tall 0.8679 | -0.0003 (3/5) vs EXP-033 | no | Vote: add Qwen 8B with first place's recipe (EXP-030) as a voter, weight 2 |
+| EXP-040 | 0.9180 | 0.0014 | word_edits 1.4634, char_edits 2.3165, score_sqrt 0.9173, short 0.9346, tall 0.8693 | +0.0010 (4/5) vs EXP-033 | no | Vote: Qwen 8B with first place's recipe (EXP-030) replaces EXP-006, weight 2 |
+| EXP-041 | 0.9179 | 0.0014 | word_edits 1.4639, char_edits 2.3170, score_sqrt 0.9173, short 0.9343, tall 0.8700 | +0.0009 (5/5) vs EXP-033 | no | Vote: add the ConvNeXt-large CTC reader (EXP-031) as a CTC voter, weight 1 |
+| EXP-042 | 0.9188 | 0.0014 | word_edits 1.4475, char_edits 2.2931, score_sqrt 0.9182, short 0.9353, tall 0.8705 | +0.0018 (5/5) vs EXP-033 | no | Vote: EXP-040 (recipe 8B replaces EXP-006) plus the ConvNeXt CTC voter (EXP-031), weight 1 |
 
 ## Leaderboard
 
