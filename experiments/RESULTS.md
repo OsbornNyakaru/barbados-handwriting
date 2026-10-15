@@ -3,7 +3,7 @@
 Validation: 5 random folds (one fixed split), near-identical transcripts kept together, balanced on scan height. Score = 1 - 0.5 * (word edits per line / 12 + character edits per line / 55) on the pooled out-of-fold predictions; ± is a bootstrap over lines. Higher is better.
 Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 folds.
 
-**Best: EXP-026 — 0.9145**
+**Best: EXP-033 — 0.9170**
 
 | exp | score | ± | parts | vs best then | adopted | description |
 |---|--:|--:|---|---|---|---|
@@ -31,6 +31,10 @@ Adoption: gain over the best >= 0.002 averaged over folds, and better in >= 4/5 
 | EXP-027 | 0.9136 | 0.0015 | word_edits 1.5347, char_edits 2.4754, score_sqrt 0.9128, short 0.9308, tall 0.8630 | -0.0009 (0/5) vs EXP-026 | no | Vote: add the CTC reader's 10 best readings as a voter (weight 1); first place gave Kraken's 25-best the largest weight |
 | EXP-028 | 0.9113 | 0.0015 | word_edits 1.5717, char_edits 2.5578, score_sqrt 0.9105, short 0.9289, tall 0.8596 | -0.0032 (0/5) vs EXP-026 | no | Vote: CTC beam reading weight 2 -> 3 |
 | EXP-029 | 0.9132 | 0.0015 | word_edits 1.5425, char_edits 2.4773, score_sqrt 0.9126, short 0.9307, tall 0.8619 | -0.0013 (0/5) vs EXP-026 | no | Vote: Qwen 8B weight 2 -> 3 |
+| EXP-018 | 0.8441 | 0.0020 | word_edits 2.7635, char_edits 4.4802, score_sqrt 0.8424, short 0.8640, tall 0.7860 | -0.0704 (0/5) vs EXP-026 | no | CTC reader (the judge): 60 -> 120 epochs |
+| EXP-032 | 0.9150 | 0.0015 | word_edits 1.5156, char_edits 2.4051, score_sqrt 0.9143, short 0.9322, tall 0.8645 | +0.0005 (4/5) vs EXP-026 | no | Vote with the 120-epoch CTC reader (EXP-018) as the CTC voter (ctc_nbest is a default fill, unused) |
+| EXP-033 | 0.9170 | 0.0015 | word_edits 1.4815, char_edits 2.3407, score_sqrt 0.9163, short 0.9337, tall 0.8679 | +0.0025 (5/5) vs EXP-026 | yes | Vote: add the 60-epoch CTC reader (EXP-005) as a second CTC voter, weight 1 |
+| EXP-034 | 0.9121 | 0.0015 | word_edits 1.5625, char_edits 2.5115, score_sqrt 0.9113, short 0.9297, tall 0.8603 | -0.0049 (0/5) vs EXP-033 | no | Vote: stronger CTC voter (EXP-018) weight 2 -> 3 |
 
 ## Leaderboard
 

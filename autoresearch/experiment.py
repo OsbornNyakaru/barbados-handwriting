@@ -142,9 +142,14 @@ def _vote_lines(prm: dict, folder, stem: str, ids: list[str], z: dict, lm, max_l
 
     srcs = {}
     for name in prm["vote_weights"]:
-        if name in ("ctc", "ctc:nbest"):   # "ctc:nbest": its ctc_nbest best beam readings
-            charset, n = list(z["charset"]), (prm["ctc_nbest"] if name == "ctc:nbest" else 1)
-            srcs[name] = {i: beam_decode(z["logp"][r].astype(np.float32), charset, lm, prm["lm_weight"], 0.0,
+        if name in ("ctc", "ctc:nbest") or name.startswith("ctc@"):
+            # "ctc:nbest": ctc_from's ctc_nbest best beam readings; "ctc@EXP-NNN": the beam reading of another CTC run
+            zz = z
+            if name.startswith("ctc@"):
+                zz = dict(np.load(folder(name[4:]) / f"{stem}_logp.npz", allow_pickle=True).items())
+                assert list(zz["ids"]) == ids, f"{name}: saved log-probabilities are for other lines"
+            charset, n = list(zz["charset"]), (prm["ctc_nbest"] if name == "ctc:nbest" else 1)
+            srcs[name] = {i: beam_decode(zz["logp"][r].astype(np.float32), charset, lm, prm["lm_weight"], 0.0,
                                          max(prm["beam"], n), nbest=n) for r, i in enumerate(ids)}
         else:
             run, _, kind = name.partition(":")

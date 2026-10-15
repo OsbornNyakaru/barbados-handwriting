@@ -1,0 +1,47 @@
+{
+  "exp": "EXP-032",
+  "hypothesis": "H-005",
+  "description": "Vote with the 120-epoch CTC reader (EXP-018) as the CTC voter (ctc_nbest is a default fill, unused)",
+  "parent": "EXP-026",
+  "changed": [
+    "params.ctc_from",
+    "params.ctc_nbest"
+  ],
+  "config": {
+    "features": [
+      "image",
+      "width",
+      "height",
+      "tall"
+    ],
+    "model": "combine",
+    "params": {
+      "mode": "vote",
+      "ctc_from": "EXP-018",
+      "vlm_from": [
+        "EXP-006",
+        "EXP-008"
+      ],
+      "lm_order": 6,
+      "lm_weight": 0.3,
+      "beam": 10,
+      "a": 0.2,
+      "w": 0.3,
+      "penalty": 1.5,
+      "all_versions": true,
+      "test_from": {},
+      "cap_len": false,
+      "vote_weights": {
+        "EXP-006": 2,
+        "EXP-008": 1,
+        "EXP-008:nbest": 1,
+        "EXP-011": 1,
+        "ctc": 2
+      },
+      "rounds": 3,
+      "ctc_nbest": 10
+    },
+    "seed": 0
+  },
+  "created": "2026-10-15T06:47:27+00:00"
+}
