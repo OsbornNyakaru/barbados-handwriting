@@ -132,28 +132,34 @@ def _readings(d: Path, stem: str, ids: list[str], nbest: bool) -> dict[str, list
     return out
 
 
-def _vote_lines(prm: dict, folder, stem: str, ids: list[str], z: dict, lm, max_len: int) -> list[str]:
+def _vote_lines(prm: dict, places, ids: list[str], lm, max_len: int) -> list[str]:
     """mode "vote": params.vote_weights = {source: weight}. A source is a run ("EXP-006": its readings and saved
     versions), a run's n-best lists ("EXP-008:nbest"), or "ctc": the beam reading of ctc_from's saved
     log-probabilities with the character language model (lm_weight). A source's weight is split over its readings.
-    folder(run) maps a held-out run to the folder holding these lines' readings."""
+    places(run) lists the (folder, file stem) pairs holding a run's readings of these lines: one for held-out lines,
+    one per fold model for test lines read by the fold models (test_from "folds")."""
     from readers.combine import vote
     from readers.lm import beam_decode
 
     srcs = {}
     for name in prm["vote_weights"]:
+        srcs[name] = {i: [] for i in ids}
         if name in ("ctc", "ctc:nbest") or name.startswith("ctc@"):
             # "ctc:nbest": ctc_from's ctc_nbest best beam readings; "ctc@EXP-NNN": the beam reading of another CTC run
-            zz = z
-            if name.startswith("ctc@"):
-                zz = dict(np.load(folder(name[4:]) / f"{stem}_logp.npz", allow_pickle=True).items())
+            n = prm["ctc_nbest"] if name == "ctc:nbest" else 1
+            for d, stem in places(name[4:] if name.startswith("ctc@") else prm["ctc_from"]):
+                zz = dict(np.load(d / f"{stem}_logp.npz", allow_pickle=True).items())
                 assert list(zz["ids"]) == ids, f"{name}: saved log-probabilities are for other lines"
-            charset, n = list(zz["charset"]), (prm["ctc_nbest"] if name == "ctc:nbest" else 1)
-            srcs[name] = {i: beam_decode(zz["logp"][r].astype(np.float32), charset, lm, prm["lm_weight"], 0.0,
-                                         max(prm["beam"], n), nbest=n) for r, i in enumerate(ids)}
+                charset = list(zz["charset"])
+                for r, i in enumerate(ids):
+                    got = beam_decode(zz["logp"][r].astype(np.float32), charset, lm, prm["lm_weight"], 0.0,
+                                      max(prm["beam"], n), nbest=n)
+                    srcs[name][i] += got if isinstance(got, list) else [got]
         else:
             run, _, kind = name.partition(":")
-            srcs[name] = _readings(folder(run), stem, ids, kind == "nbest")
+            for d, stem in places(run):
+                for i, rs in _readings(d, stem, ids, kind == "nbest").items():
+                    srcs[name][i] += rs
     out = []
     for i in ids:
         voters = [(t, w / len(srcs[n][i])) for n, w in prm["vote_weights"].items() if srcs[n][i] for t in srcs[n][i]]
@@ -196,7 +202,7 @@ def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
         lm = CharLM([P.clean(t) for t in train[P.TARGET].iloc[a]], prm["lm_order"])
         max_len = int(train[P.TARGET].iloc[a].map(P.clean).str.len().max())
         if prm["mode"] == "vote":
-            out[b] = _vote_lines(prm, lambda run: RUNS / run, f"fold{k}", ids, z, lm, max_len)
+            out[b] = _vote_lines(prm, lambda run: [(RUNS / run, f"fold{k}")], ids, lm, max_len)
             continue
         res = []
         for r, i in enumerate(ids):
@@ -216,7 +222,8 @@ def _combine_saved(cfg: dict, train: pd.DataFrame, rep) -> np.ndarray:
 def _combine_test(cfg: dict, train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
     """combine on the test lines: the same judge, reading the test runs named in params.test_from ({held-out run: its
     test run}, each test run being the same spec trained on every training line), with the language model on all of
-    them. Only "choose" is supported."""
+    them. Modes "choose" and "vote". In "vote", test_from may map a run to "folds": its five fold models' own test
+    readings (fold<k>_test.*, spec option read_test), the source's weight split over them as first place did (R-002)."""
     import json
 
     from readers.combine import choose
@@ -226,10 +233,18 @@ def _combine_test(cfg: dict, train: pd.DataFrame, test: pd.DataFrame) -> np.ndar
     if prm["mode"] not in ("choose", "vote"):
         raise ValueError("test predictions are built for modes 'choose' and 'vote' only")
     tf = prm["test_from"]
+    ids = list(test[P.ID_COL])
+    lm = CharLM([P.clean(t) for t in train[P.TARGET]], prm["lm_order"])
+    max_len = int(train[P.TARGET].map(P.clean).str.len().max())
+    if prm["mode"] == "vote":
+        def places(run):
+            if tf[run] == "folds":
+                return [(RUNS / run, f"fold{k}_test") for k in range(P.N_FOLDS)]
+            return [(RUNS / tf[run], "test")]
+        return np.array(_vote_lines(prm, places, ids, lm, max_len), dtype=object)
     judges = [prm["ctc_from"]] if isinstance(prm["ctc_from"], str) else list(prm["ctc_from"])
     vlms = [prm["vlm_from"]] if isinstance(prm["vlm_from"], str) else list(prm["vlm_from"])
     zs = [dict(np.load(RUNS / tf[j] / "test_logp.npz", allow_pickle=True).items()) for j in judges]
-    ids = list(test[P.ID_COL])
     for z in zs:
         assert list(z["ids"]) == ids, "saved test log-probabilities are not in test order"
     cands = {i: [] for i in ids}
@@ -244,10 +259,6 @@ def _combine_test(cfg: dict, train: pd.DataFrame, test: pd.DataFrame) -> np.ndar
         if (d / "test_nbest.json").exists():
             for i, lst in json.loads((d / "test_nbest.json").read_text()).items():
                 cands[i] += lst
-    lm = CharLM([P.clean(t) for t in train[P.TARGET]], prm["lm_order"])
-    max_len = int(train[P.TARGET].map(P.clean).str.len().max())
-    if prm["mode"] == "vote":
-        return np.array(_vote_lines(prm, lambda run: RUNS / tf[run], "test", ids, zs[0], lm, max_len), dtype=object)
     out = []
     for r, i in enumerate(ids):
         lps = [z["logp"][r].astype(np.float32) for z in zs]
@@ -305,13 +316,35 @@ def run(cfg: dict, train: pd.DataFrame, test: pd.DataFrame, folds) -> tuple[np.n
     return oof, np.asarray(fit_predict(cfg, X, y, Xt, cfg["seed"], _LocalCtx)[0])
 
 
-def run_fold(cfg: dict, train: pd.DataFrame, fold: int, ctx, positions=None) -> tuple[pd.DataFrame, dict]:
+def _split_extras(extras: dict, n: int) -> tuple[dict, dict]:
+    """Per-line extras (logp, nbest) cut at line n; the rest (charset, inner_cer) go to both halves."""
+    head, tail = {}, {}
+    for k, v in extras.items():
+        if k in ("logp", "nbest"):
+            head[k], tail[k] = list(v[:n]), list(v[n:])
+        else:
+            head[k] = tail[k] = v
+    return head, tail
+
+
+def run_fold(cfg: dict, train: pd.DataFrame, fold: int, ctx, positions=None,
+             test: pd.DataFrame | None = None) -> tuple[pd.DataFrame, dict]:
     """One fold of the fixed split (molab). `positions` = (train positions, held-out positions); remote.py passes
-    them from the pinned fold file. Returns the held-out predictions [ID, pred] and extras to upload."""
+    them from the pinned fold file. Returns the held-out predictions [ID, pred] and extras to upload. With
+    cfg["read_test"] and `test`, the same fold model also reads the test lines (first place's test readings, R-002):
+    extras["test"] = (test predictions, their extras)."""
     a, b = positions if positions is not None else P.folds(train)[0][fold]
     X, y = features(train), train[P.TARGET].to_numpy()
-    preds, extras = fit_predict(cfg, X.iloc[a], y[a], X.iloc[b], cfg["seed"] + fold, ctx)
-    out = pd.DataFrame({P.ID_COL: train[P.ID_COL].iloc[b].to_numpy(), "pred": [P.clean(t) for t in preds]})
+    apply = X.iloc[b]
+    both = cfg.get("read_test") and test is not None
+    if both:
+        apply = pd.concat([apply, features(test)], ignore_index=True)
+    preds, extras = fit_predict(cfg, X.iloc[a], y[a], apply, cfg["seed"] + fold, ctx)
+    preds = [P.clean(t) for t in preds]
+    out = pd.DataFrame({P.ID_COL: train[P.ID_COL].iloc[b].to_numpy(), "pred": preds[:len(b)]})
+    if both:
+        extras, tx = _split_extras(extras, len(b))
+        extras["test"] = (pd.DataFrame({P.ID_COL: test[P.ID_COL].to_numpy(), "pred": preds[len(b):]}), tx)
     return out, extras
 
 

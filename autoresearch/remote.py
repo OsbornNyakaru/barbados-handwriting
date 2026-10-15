@@ -123,12 +123,16 @@ def run_spec(spec: dict, store, log=print, cache: dict | None = None, work_dir: 
             pred, extras = E.run_test(cfg, train, test, ctx)
         else:
             ctx.log(f"fold {k}: start ({cfg['model']})")
-            pred, extras = E.run_fold(cfg, train, k, ctx, (np.where(fold != k)[0], np.where(fold == k)[0]))
-        files = {name: pred}
-        if "logp" in extras:
-            files[f"{stem}_logp.npz"] = _npz(extras, pred[P.ID_COL].tolist())
-        if "nbest" in extras:
-            files[f"{stem}_nbest.json"] = json.dumps(dict(zip(pred[P.ID_COL].tolist(), extras["nbest"])))
+            pred, extras = E.run_fold(cfg, train, k, ctx, (np.where(fold != k)[0], np.where(fold == k)[0]), test)
+        files = {}
+        # the fold model's own test readings (cfg["read_test"]): fold<k>_test.csv, _test_logp.npz, _test_nbest.json
+        parts = [(stem, pred, extras)] + ([(f"{stem}_test", *extras.pop("test"))] if "test" in extras else [])
+        for s, p, x in parts:
+            files[f"{s}.csv"] = p
+            if "logp" in x:
+                files[f"{s}_logp.npz"] = _npz(x, p[P.ID_COL].tolist())
+            if "nbest" in x:
+                files[f"{s}_nbest.json"] = json.dumps(dict(zip(p[P.ID_COL].tolist(), x["nbest"])))
         done[k] = {"seconds": round(time.time() - tf, 1), **{x: extras[x] for x in ("inner_cer",) if x in extras}}
         if k != TEST:
             ref = train.set_index(P.ID_COL).loc[pred[P.ID_COL], P.TARGET]

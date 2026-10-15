@@ -90,3 +90,28 @@ fold) in most folds. Expected: 0.915 to 0.925 (R-001 estimate).
 readings by CTC evidence reached 0.907 on fold 0. The CTC reading itself is not a candidate. Order from here:
 EXP-006 (Qwen3-VL-8B, running) → EXP-008 (Qwen3-VL-2B, 5-best, queued) → combine "choose" on all folds → a
 stronger judge (ConvNeXt CTC; CRNN at height 128) → more candidates (second 8B seed with 5-best, LightOnOCR-2).
+
+## Update 2026-10-15 (afternoon): the plan after first place's write-up
+
+Where we stand: the vote (EXP-033) 0.9170; 1st place 0.933, 50th 0.924. EXP-019 (8B, 4 epochs) lost on every fold
+(0.8866 vs 0.894) and added nothing as a voter (EXP-036, +0.0001), so more training is not the way. EXP-030 (8B with
+first place's recipe: 2 epochs, lr 2e-4, merger trained, beam 4, repeat collapse) beat EXP-006 on its first two folds
+(0.9023 vs 0.8943, 0.9066 vs 0.8926) and runs about 25 min a fold, faster than EXP-006.
+
+New: spec option `read_test` (top level of config). Each fold model also reads the test lines (fold<k>_test.*), and a
+vote spec's `test_from` can map a run to "folds" to use them, the source's weight split over the five fold models
+(first place's test readings, R-002). New readers get it; readers already run get one all-lines test run instead
+(cheaper, and FND-007 shows it holds up on Zindi).
+
+| # | step | needs | basis | expected |
+|--:|---|---|---|---|
+| 1 | EXP-030 into the vote (as an extra voter, then replacing EXP-006) | CPU, minutes, after EXP-030 | R-002; +0.008 to +0.014 alone per fold | +0.003 to +0.008 |
+| 2 | The recipe on Qwen3-VL-2B (5-best) and 4B, with `read_test` | about 1 + 1.5 GPU-h | R-002; EXP-030 | +0.002 to +0.005 via the vote |
+| 3 | EXP-031 ConvNeXt-large CTC into the vote | CPU, after EXP-031 (~17:30 EAT) | R-002 (ConvNeXt weight 3 of 47) | 0 to +0.003 |
+| 4 | Word-span crops: word boundaries from forced alignment of each training line against its own held-out CTC log-probabilities (EXP-018, on the Mac), then 1 to 5 word crops as extra Qwen training examples | code (Mac), then one 8B run, about 3 GPU-h | R-002; our tall batch is the weak one (0.869 vs 0.934) | +0.003 to +0.008 |
+| 5 | LightOnOCR-2-1B, full fine-tune at 2e-5, 2 epochs | new reader code, check transformers on molab; 2 to 3 GPU-h | R-001 licence cleared; R-002 gave it the largest VLM weight (6+6) | a third family; +0.002 to +0.006 |
+| 6 | Second Zindi submission | test runs for the final voters lacking test readings (EXP-018 CTC, 4B or its recipe version, EXP-030), about 2 GPU-h; then a vote spec with test_from | FND-007 | Zindi ~ validation |
+
+Parked: nine views (first place's costliest variant, 21 GPU-h a fold; revisit for tall scans only if step 4 works,
+since it needs the same word boundaries); Kraken (our two CTC readers fill its place, and the CTC 10-best as a voter
+lost in EXP-027); more 8B epochs (EXP-019); vote weight tuning on the current readings (ten tries, stopped).
